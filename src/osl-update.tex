@@ -17,7 +17,7 @@
 \maketitle
 
 \begin{abstract}
-	TODO
+	This note provides an update on the Open Specification Language (OSL) circuit compiler. OSL is a language based on predicate logic which is amenable to compilation to arithmetic constraint systems for use in constructing (zk-)SNARKs. This system provides an alternative to universal zk-VMs and low level \emph{ad hoc}\/ constructions of arithmetic constraint systems, which is potentially more efficient than universal zk-VMs but more cost effective as a development approach than low level \emph{ad hoc}\/ constructions.
 \end{abstract}
 
 
@@ -31,9 +31,25 @@ The goal of this research is to develop tools for creating zk-SNARKs for a relat
 
 As an alternative, this research would allow end developers to specify a relation $R$ by a formula $\Phi(x, w)$ in a version of predicate logic, using a circuit compiler to generate an arithmetical constraint system for the relation $R$, and an argument translator which takes inputs $(x, w)$ such that $R(x, w)$ and turns them into inputs satisfying the arithmetical constraint system.
 
-This research began with the support of Orbis Labs and continues with the support of Casper Association. Prior art in this line of research \cite{sigma11,osl-paper,osl-poly-bounds} defined a version of predicate logic which is strong enough to express NP relations which are practical to arithmetize, and also some methods for arithmetizing formulas in that language on top of PLONKish arithmetization using Halo 2. \cite{halo2-book,halo2-github} The language in question is called OSL, which originally stood for Orbis Specification Language and now stands for Open Specification Language (a backronym). Implementation efforts \cite{osl-github} are ongoing and open source, and are approaching a point where generating zero knowledge proofs will be possible. The current paper provides an update on the research and development efforts, which have come up with more practical methods of arithmetization than what are described in the prior literature.
+This research began with the support of Orbis Labs and continues with the support of Casper Association. Prior art in this line of research \cite{sigma11,osl-paper,osl-poly-bounds} defined a version of predicate logic which is strong enough to express NP relations which are practical to arithmetize, and also some methods for arithmetizing formulas in that language on top of PLONKish arithmetization using Halo 2. \cite{halo2-book,halo2-github} The language in question is called OSL, which originally stood for Orbis Specification Language and now stands for Open Specification Language (a backronym). Implementation efforts \cite{osl-github} are ongoing and open source. As of this writing, these efforts are closely approaching a point where generating zero knowledge proofs will be possible. The current paper provides an update on the research and development efforts, which have come up with more practical methods of arithmetization than what are described in the prior literature.
 
-OSL is a layer of abstraction over $\Sigma^1_1$ formulas. $\Sigma^1_1$ formulas are a sublanguage of second order arithmetic. \cite{simpson} They allow for first-order quantifiers with polynomial bounds, and second-order existential quantifiers with polynomial bounds. See \cite{sigma11-poly-bounds} for more details and a formal definition of $\Sigma^1_1$ formulas. OSL adds rudiments of type theory, including basic functors like list and map type constructors, all of which can be straightforwardly translated into $\Sigma^1_1$ formulas.
+OSL is a layer of abstraction over $\Sigma^1_1$ formulas. $\Sigma^1_1$ formulas are a sublanguage of second order arithmetic \cite{simpson} extended with $\text{ind}_<$ and max built-in functions, defined as follows:
+
+\begin{equation}
+	\text{ind}_<(x, y) = \begin{cases}
+		1 & \text{if}\ x < y, \\
+		0 & \text{otherwise}.
+	\end{cases}
+\end{equation}
+
+\begin{equation}
+	\text{max}(x, y) = \begin{cases}
+		x & \text{if} y \leq x, \\
+		y & \text{otherwise}.
+	\end{cases}
+\end{equation}
+
+$\Sigma^1_1$ formulas allow for first-order quantifiers with polynomial bounds, and second-order existential quantifiers with polynomial bounds. See \cite{sigma11-poly-bounds} for more details and a formal definition of $\Sigma^1_1$ formulas. OSL adds rudiments of type theory, including basic functors like list and map type constructors, all of which can be straightforwardly translated into $\Sigma^1_1$ formulas.
 
 There is a natural connection between $\Sigma^1_1$ formulas and computation, in that sequential models of computation are typically natural to express as $\Sigma^1_1$ formulas. If a function $f$ is defined within a sequential model of computation, then $f(x, w) = y$ means in other words that there is a sequence of states $s_0, ..., s_n$ such that $s_0$ is the appropriate initial state for inputs $(x, w)$, $s_n$ is a final state where the program has halted and indicated an output of $y$, and for all $i \in [0, n)$, the step transition function of the model of computation maps $s_i$ to $s_{i+1}$. The same can be expressed as a $\Sigma^1_1$ formula as long as the step transition function is a first-order relation (i.e., it can be expressed using only first-order polynomially bounded quantifiers).
 
@@ -53,7 +69,35 @@ A ``trace type'' is an object which defines what would be a valid trace for that
 
 It would of course be possible to use a universal trace type to arithmetize all NP relations (up to some complexity bound). This is the approach of universal zk-VMs. The hypothesis driving this research into application specific trace types is that given specific knowledge of the relation of interest, one can automatically come up with a trace type which more efficiently arithmetizes the relation of interest.
 
+Overall, the OSL compiler in its current form has the following stages, from first to last:
 
+\begin{enumerate}
+	\item Tokenizing turns the textual representation of OSL code into a sequence of lexical tokens.
+	\item Parsing turns the tokenized OSL code into an abstract syntax tree (AST).
+	\item Semantic analysis turns the AST of the OSL code into a valid context, which maps names to their definitions, ensuring that these definitions are interpretable within the context and the semantic rules of OSL.
+	\item The valid OSL from semantic analysis gets compiled into a $\Sigma^1_1$ formula. In this stage, the $\Sigma^1_1$ formula uses de Bruijn indices as variable names.
+	\item The de Bruijn indices in the $\Sigma^1_1$ formula get replaced with gensyms, which are globally unique generated names. Formulas using de Bruijn indices are relatively easy to generate, because unintended variable capture is not much of a concern; there is no need to carry state to remember which variable names have been used during the generation process. On the other hand, formulas using gensyms are relatively easy to manipulate. That is why this stage is useful.
+	\item The $\Sigma^1_1$ formula gets converted into a prenex normal form, which brings all quantifiers to the front of the formula.
+	\item The prenex normal form gets converted into a strong prenex normal form, which brings all instance quantifiers to the front of the formula, followed by all existential quantifiers, followed by all universal quantifiers.
+	\item The strong prenex normal form gets compiled into a logic circuit. A logic circuit is a structure similar to a Halo 2 circuit, with some key differences, as follows. Logic circuits do not have lookup arguments, but instead just gate constraints and equality constraints. Instead of taking the form $p = 0$, for $p$ a polynomial, gate constraints are quantifier-free logic formulas which can assert equalities and inequalities over terms involving variables, constants, addition, multiplication, the max and $\text{ind}_<$ functions, and lookups.
+
+		Variables in this context are the same as they are in Halo 2 gate constraints: they are of the form $x_{i,j}$, where $i$ is an absolute column index and $j$ is a relative row index (an offset from the current row). Lookups in this context are of the form $c_{n+1}((t_1, c_1), ..., (t_n, c_n))$ where each $t_i$ is a term and each $c_i$ is a column ($i$ being an absolute column index). The output of a lookup term at a row $r$ is the value of column $c_{n+1}$ in the unique row $r'$ such that the vector of column values $(c_1, ..., c_n)$ at row $r'$ is equal to the vector of term values $(t_1, ..., t_n)$ at row $r$. Lookups are effectively the ``missing link'' between function calls and lookup arguments, having some characteritics of both function calls and lookup arguments, being the result of compiling function calls and being compiled into lookup arguments in Halo 2 circuits.
+
+		This notion of logic circuits is similar to the notion of logic circuits found in \cite{sigma11-poly-bounds}, with the difference being that terms related by equalities and inequalities are as just described instead of being plain polynomials as in \cite{sigma11-poly-bounds}.
+
+	\item The logic circuit gets compiled into a trace type.
+	\item The trace type gets compiled into a Halo 2 circuit.
+\end{enumerate}
+
+For practical purposes, one needs not only a compiler to turn OSL code into Halo 2 circuits, but also a compiler to turn inputs satisfying a predicate defined in OSL into inputs satisfying the resulting Halo 2 circuit. The latter compiler is called the ``argument compiler.'' The OSL compiler only needs to be applied once per relation to be arithmetized, and the argument compiler needs to be applied once per instance to be proven.
+
+As of this writing, the OSL compiler and the argument compiler exist and pass tests, but they use a notion of circuits which is not exactly compatible with Halo 2. The disconnect is that the notion of circuits targeted in the OSL compiler features lookup arguments gated by polynomial expressions, such that the lookup arguments only apply at rows where the gate expression is zero, whereas Halo 2 only supports lookup arguments gated by fixed selector columns. There is nothing that prevents this gap from being bridged efficiently, and work to bridge the gap is underway as of this writing.
+
+In the previously published constructions of Halo 2 circuits from logic circuits, \cite{sigma11,sigma11-poly-bounds}, each row of the Halo 2 circuit corresponds to one row of the source logic circuit. Because the constraints in a logic circuit can imply a lot of complex constraints on one row, the complexity of the polynomials in the resulting Halo 2 circuits tends to be exceedingly high in the previously published constructions. The solution to this problem in the trace type based compilation pipeline is to let one row in the logic circuit correspond to many rows in the resulting Halo 2 circuit. In this newer construction, each row of the Halo 2 circuit verifies the evaluation of one subexpression at one row of the logic circuit. A subexpression can be a term, a subformula of a gate constraint, or an assertion that a subformula is true.
+
+TODO: describe trace types
+
+TODO: future directions
 
 
 \clearpage
