@@ -31,7 +31,29 @@ The goal of this research is to develop tools for creating zk-SNARKs for a relat
 
 As an alternative, this research would allow end developers to specify a relation $R$ by a formula $\Phi(x, w)$ in a version of predicate logic, using a circuit compiler to generate an arithmetical constraint system for the relation $R$, and an argument translator which takes inputs $(x, w)$ such that $R(x, w)$ and turns them into inputs satisfying the arithmetical constraint system.
 
-This research began with the support of Orbis Labs and continues with the support of Casper Association. Prior art in this line of research \cite{sigma11,osl-paper,osl-poly-bounds} defined a version of predicate logic which is strong enough to express NP relations which are practical to arithmetize, and also some methods for arithmetizing formulas in that language. The language in question is called OSL, which originally stood for Orbis Specification Language and now stands for Open Specification Language (a backronym). Implementation efforts \cite{osl-github} are ongoing and open source, and are approaching a point where generating zero knowledge proofs will be possible. The current paper provides an update on the research and development efforts, which have come up with more practical methods of arithmetization than are described in the prior literature.
+This research began with the support of Orbis Labs and continues with the support of Casper Association. Prior art in this line of research \cite{sigma11,osl-paper,osl-poly-bounds} defined a version of predicate logic which is strong enough to express NP relations which are practical to arithmetize, and also some methods for arithmetizing formulas in that language on top of PLONKish arithmetization using Halo 2. \cite{halo2-book,halo2-github} The language in question is called OSL, which originally stood for Orbis Specification Language and now stands for Open Specification Language (a backronym). Implementation efforts \cite{osl-github} are ongoing and open source, and are approaching a point where generating zero knowledge proofs will be possible. The current paper provides an update on the research and development efforts, which have come up with more practical methods of arithmetization than what are described in the prior literature.
+
+OSL is a layer of abstraction over $\Sigma^1_1$ formulas. $\Sigma^1_1$ formulas are a sublanguage of second order arithmetic. \cite{simpson} They allow for first-order quantifiers with polynomial bounds, and second-order existential quantifiers with polynomial bounds. See \cite{sigma11-poly-bounds} for more details and a formal definition of $\Sigma^1_1$ formulas. OSL adds rudiments of type theory, including basic functors like list and map type constructors, all of which can be straightforwardly translated into $\Sigma^1_1$ formulas.
+
+There is a natural connection between $\Sigma^1_1$ formulas and computation, in that sequential models of computation are typically natural to express as $\Sigma^1_1$ formulas. If a function $f$ is defined within a sequential model of computation, then $f(x, w) = y$ means in other words that there is a sequence of states $s_0, ..., s_n$ such that $s_0$ is the appropriate initial state for inputs $(x, w)$, $s_n$ is a final state where the program has halted and indicated an output of $y$, and for all $i \in [0, n)$, the step transition function of the model of computation maps $s_i$ to $s_{i+1}$. The same can be expressed as a $\Sigma^1_1$ formula as long as the step transition function is a first-order relation (i.e., it can be expressed using only first-order polynomially bounded quantifiers).
+
+There is also a natural connection between $\Sigma^1_1$ formulas and arithmetical constraint systems. The semantics of arithmetical constraint systems are typically natural to express as $\Sigma^1_1$ formulas, and it is also very feasible to express a $\Sigma^1_1$ formula as an arithmetical constraint system. The free variables in the formula (the ones not bound by quantifiers) correspond to public inputs, and the variables bound by existential quantifiers correspond to private inputs. In a useful variant on this approach, we consider $\Sigma^1_1$ formulas with no free variables, and we add a so-called instance quantifier, $\lambda$, where $\lambda x.\ \Phi(x)$ has the same semantics as $\Phi(x)$ (where $x$ is free in $\Phi(x)$). What is useful about the instance quantifier concept is that we can use it to apply a bound to an instance variable, as in $\lambda x < \alpha.\ \Phi(x)$.
+
+It is in general not computationally feasible to compute whether a $\Sigma^1_1$ formula is true or false. However, it is in general computationally feasible to check whether a first-order formula is satisfied or not on given inputs. Given satisfying values for the instance or second-order existential quantifiers in a $\Sigma^1_1$ formula, it is in general computationally feasible to check that the formula is true, since this reduces to the problem of determining that a first-order formula is true after plugging in the given values for the second-order variables.
+
+Prior research \cite{sigma11,sigma11-poly-bounds} described methods for arithmetizing $\Sigma^1_1$ formulas which took advantage of the similarities between $\Sigma^1_1$ formulas and arithmetical constraint systems. These methods, however, were not feasible to apply in practice. They tended to result in a blow-up in the degrees and numbers of terms in the resulting polynomial constraints, to a point that it was often not feasible to compute these polynomials, let alone generate zk-SNARKs based on them.
+
+The current version of the OSL compiler \cite{osl-github} demonstrates a feasible method of compiling $\Sigma^1_1$ formulas to arithmetical constraint systems. This method is based on application specific trace types.
+
+A ``trace'' describes the steps of a computational process. For a sequential model of computation, a trace is equivalent to a series of states $s_0, ..., s_n$, with $s_0$ being the initial state and $s_n$ the final state, such that for all $i \in [0,n)$, the step transition relation for the model of computation relates $s_i$ to $s_{i+1}$. More generally, a trace need not have a sequential structure, but can have a tree structure.
+
+For examples of non-sequential traces, we can consider traces for an arithmetic circuit. An arithmetic circuit, let's say, is a directed acyclic graph, where each non-initial node (each node with an ancestor) has exactly two ancestors and is labeled with either $+$ or $\times$, and there is exactly one final node (a node which is not an ancestor). A trace for an arithmetic circuit is a function from the set of nodes to the set of field elements.
+
+A ``trace type'' is an object which defines what would be a valid trace for that trace type. For example, a trace type can define valid traces for a specific arithmetic circuit, or valid traces for a specific model of computation. The reason for defining a general trace type abstraction is in order to define application specific trace types for arithmetizing relations using application specific constraint systems. The overall approach is to define a compiler which compiles relations defined in OSL into $\Sigma^1_1$ formulas, which are then compiled into application specific trace types, which are then compiled into arithmetical constraint systems.
+
+It would of course be possible to use a universal trace type to arithmetize all NP relations (up to some complexity bound). This is the approach of universal zk-VMs. The hypothesis driving this research into application specific trace types is that given specific knowledge of the relation of interest, one can automatically come up with a trace type which more efficiently arithmetizes the relation of interest.
+
+
 
 
 \clearpage
@@ -44,11 +66,13 @@ This research began with the support of Orbis Labs and continues with the suppor
 
 	\bibitem{osl-paper} Morgan Thomas, Orbis Labs. \textit{Orbis Specification Language: a type theory for zk-SNARK programming.} Cryptology ePrint Archive, Report 2022/1003. \url{https://eprint.iacr.org/2022/1003}
 
-	\bibitem{osl-poly-bounds} Anthony Hart, Morgan Thomas, Orbis Labs. \textit{Arithmetization of $\Sigma^1_1$ relations with polynomial bounds in Halo 2.} Cryptology ePrint Archive, Report 2022/1003. \url{https://eprint.iacr.org/2022/1005}
+	\bibitem{sigma11-poly-bounds} Anthony Hart, Morgan Thomas, Orbis Labs. \textit{Arithmetization of $\Sigma^1_1$ relations with polynomial bounds in Halo 2.} Cryptology ePrint Archive, Report 2022/1003. \url{https://eprint.iacr.org/2022/1005}
 
 	\bibitem{halo2-book} The Electric Coin Company. \textit{The halo2 Book.} 2021. \url{https://zcash.github.io/halo2/index.html}
 
 	\bibitem{halo2-github} The Electric Coin Company. \textit{halo2.} 2022. \url{https://github.com/zcash/halo2}
+
+	\bibitem{simpson} Stephen G. Simpson. \textit{Subsystems of Second Order Arithmetic.} Cambridge University Press, 2009. ISBN 1139478915, 9781139478915.
 
 
 \end{thebibliography}
