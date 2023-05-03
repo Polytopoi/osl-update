@@ -21,7 +21,17 @@
 \end{abstract}
 
 
-Arithmetization is the process of expressing a relation as an arithmetical constraint system suitable for proving membership in the relation using SNARKs.
+Arithmetization is the process of expressing a relation as an arithmetical constraint system suitable for proving membership in the relation using (zk-)SNARKs. There are two kinds of approaches to arithmetization: universal and application-specific. Universal arithmetization uses constraint systems which can capture any NP relation up to some complexity bounds. Application-specific arithmetization uses \emph{ad hoc}\/ constraint systems which each capture one NP relation (again, up to some complexity bounds).
+
+Universal arithmetization typically works by expressing the semantics of a virtual machine architecture as an arithmetical constraint system, yielding a so-called zero knowledge virtual machine (zk-VM). Application specific arithmetization typically works by writing a constraint system more or less directly within some cryptographic application development framework, or else by using a compiler which transforms a relation expressed in some language into an arithmetical constraint system.
+
+In zero knowledge proving for a relation $R$, one wants to show, for some public $x$, that there exists some (private) $w$ such that $R(x, w)$. Oftentimes, one models the relation to be arithmetized as a function; in general, for a function $f$, one wants to show, for some public $x$ and $y$, that there exists some (private) $w$ such that $f(x, w) = y$. The function formulation is a special case of the relation formulation where one lets $R = \{((x, y), w) : f(x, w) = y\}$. One can also go from the relation formulation to the function formulation, given an algorithm for checking membership in the relation $R$, that is, a function $f$ such that $f(x, w) = 1$ iff $R(x, w)$.
+
+The goal of this research is to develop tools for creating zk-SNARKs for a relation $R$ without being concerned about how the relation $R$ gets checked. Such tools would allow for working at a higher level of abstraction, separating the concern of \emph{what}\/ is to be proven from \emph{how}\/ it is to be proven. zk-VM approaches require as input a program and inputs to the program, thus requiring the end developer to specify a way to check the statement using a program execution.
+
+As an alternative, this research would allow end developers to specify a relation $R$ by a formula $\Phi(x, w)$ in a version of predicate logic, using a circuit compiler to generate an arithmetical constraint system for the relation $R$, and an argument translator which takes inputs $(x, w)$ such that $R(x, w)$ and turns them into inputs satisfying the arithmetical constraint system.
+
+This research began with the support of Orbis Labs and continues with the support of Casper Association. Prior art in this line of research \cite{sigma11,osl-paper,osl-poly-bounds} defined a version of predicate logic which is strong enough to express NP relations which are practical to arithmetize, and also some methods for arithmetizing formulas in that language. The language in question is called OSL, which originally stood for Orbis Specification Language and now stands for Open Specification Language (a backronym). Implementation efforts \cite{osl-github} are ongoing and open source, and are approaching a point where generating zero knowledge proofs will be possible. The current paper provides an update on the research and development efforts, which have come up with more practical methods of arithmetization than are described in the prior literature.
 
 
 \clearpage
