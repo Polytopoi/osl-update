@@ -103,11 +103,26 @@ A trace type defines a map from step type ids to step type definitions. A step t
 
 A trace type defines a set of subexpression ids and a set of subexpression links. Each subexpression link is of the form $\vec{i} \mapsto^t o$, where $o$ is a subexpression id (the output subexpression), $\vec{i}$ is a vector of subexpression ids (the input subexpressions), and $t$ is a step type id.
 
-It is legal for there to be different subexpression links with the same output; this entails that that subexpression's value can validly be determined based on more than one step type and/or more than one input vector. So that each output subexpression value is uniquely defined by the logic circuit inputs, it should be that in any case, all links that can be instantiated for an output $o$ result in the same value of $o$.
+It is legal for there to be different subexpression links with the same output; this entails that that subexpression's value can validly be determined based on more than one step type and/or more than one input vector. So that each output subexpression value is uniquely defined by the logic circuit input matrix, it should be that in any case, all links that can be instantiated for an output $o$ result in the same value of $o$.
 
 The motivating example of having multiple links with the same output is short circuiting evaluation. For example, if $x = 0$, then $x \times y = 0$. So we can have three links outputting $x \times y$, one of which takes $x$ as input and works when $x = 0$ and the output is 0, one of which takes $y$ as input and works when $y = 0$ and the output is 0, and one of which takes $x$ and $y$ as input and works for any values of $x$ and $y$.
 
+A trace type defines a subset of the set of subexpression ids which are the ``result subexpression ids.'' For a trace to satisfy the trace type, each of its result subexpression ids must be true (i.e., have value 1) for each case.
+
+A trace type defines its number of cases (equal to the number of rows of the source logic circuit) and its number of rows. The number of rows is less than or equal to $c \times |S|$, with $c$ the number of cases, and $S$ the set of subexpression ids. In practice, in the current version of the compiler, the number of rows is always equal to $c \times |S|$, but in future versions, the number of rows could be less in some cases, as an optimization, whenever it can happen that not all subexpressions need to be instantiated for all cases.
+
+Finally, a trace type defines various column indices:
+\begin{itemize}
+	\item It defines a case number column index, which should be assigned, for each row, the case number that row applies to.
+	\item It defines a step indicator column index, which should be assigned one at each row representing a subexpression, and zero at all other rows.
+	\item It defines a step type id selection vector, which is a vector of column indices, one per step type. At each row with a step indicator value of one, the step type id selection vector should contain exactly one column index assigned the value one, with the rest being assigned zero. At rows with a step indicator value of zero, all of the step type selection vector columns can be assigned zero. The step type selection vector values indicate which step type applies to each row. 
+	\item It defines a vector of input column indices, of length equal to the number of inputs to a step type, which get assigned the values of the input subexpressions to the subexpression related to each row which is used to represent a step. Note that all step types have the same number of inputs, and for step types where some of these inputs are not needed, some of these inputs are fed by the ``void'' step type, which always outputs zero and is linked to itself for all of its own inputs.
+	\item It defines an output column index, which gets assigned the value of the subexpression represented by the row at each row representing a subexpression.
+\end{itemize}
+
 TODO: describe trace types
+
+TODO: describe compiler stages
 
 TODO: future directions: finishing, optimization, verification
 
