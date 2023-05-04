@@ -8,7 +8,7 @@
 \usepackage{lmodern}
 \usepackage{hyperref}
 
-\title{Arithmetization using application specific trace types}
+\title{Arithmetization of predicates into Halo 2 using application specific trace types}
 \author{ \\ Morgan Thomas \\ Casper Association \\ morgan@casper.network }
 
 
@@ -118,13 +118,34 @@ Finally, a trace type defines various column indices:
 	\item It defines a step type id selection vector, which is a vector of column indices, one per step type. At each row with a step indicator value of one, the step type id selection vector should contain exactly one column index assigned the value one, with the rest being assigned zero. At rows with a step indicator value of zero, all of the step type selection vector columns can be assigned zero. The step type selection vector values indicate which step type applies to each row. 
 	\item It defines a vector of input column indices, of length equal to the number of inputs to a step type, which get assigned the values of the input subexpressions to the subexpression related to each row which is used to represent a step. Note that all step types have the same number of inputs, and for step types where some of these inputs are not needed, some of these inputs are fed by the ``void'' step type, which always outputs zero and is linked to itself for all of its own inputs.
 	\item It defines an output column index, which gets assigned the value of the subexpression represented by the row at each row representing a subexpression.
+	\item It defines a case used column index, which gets assigned the value one for each row whose case number is a used case for the trace, and zero for all other rows.
 \end{itemize}
 
-TODO: describe trace types
+A trace satisfies a trace type if:
+\begin{itemize}
+	\item For each used case, all result subexpressions are present.
+	\item For each row with a step indicator value of one, the vector of step type selection vector values contains exactly one 1 and the rest of its values are 0.
+	\item For each row, all applicable step type constraints are satisfied.
+	\item All equality constraints are satisfied.
+\end{itemize}
 
-TODO: describe compiler stages
+For full details on the compiler stages, see the code. \cite{osl-github} Here are some concise comments on how the most interesting compiler stages work.
 
-TODO: future directions: finishing, optimization, verification
+\begin{enumerate}
+	\item The compilation of OSL to $\Sigma^1_1$ formulas is largely the same as described in \cite{osl-paper}. 
+	\item Conversion to strong prenex normal form relies on the fact that instance quantifiers will already be in the front of the $\Sigma^1_1$ formula as output by the OSL to $\Sigma^1_1$ stage, and this property is preserved by the conversion to prenex normal form. Therefore it suffices to move all existential quantifiers in front of all universal quantifiers. For this, it suffices to understand how to move one existential quantifier in front of one universal quantifier in front of it. This is done by turning a first-order existential quantifier into a second-order quantifier with one argument, and a second-order existential quantifier with $n$ arguments into a second-order quantifier with $n+1$ arguments. The value of the universal quantifier becomes an argument of the existentially quantified function. This process is similar to the process of Skolemization.
+	\item The compilation of strong prenex normal forms to logic circuits is similar to the process described in \cite{sigma11-poly-bounds}, but somewhat simplified by the usage of a strong prenex normal form instead of a prenex normal form. The values of the instance and existential quantifiers are embedded as lookup tables in the logic circuit input matrix, and the set of all applicable combinations of universally quantified variable values is also embedded in the logic circuit input matrix. Each row of the logic circuit checks that the quantifier-free portion of the formula is satisfied for one case, i.e., one of the applicable combinations of universally quantified variable values. To deal with empty quantification, that is, cases where the bound on a universal variable is zero, there are dummy rows inserted at all points in the universal table where empty quantification occurs. There is a dummy row indicator column which identifies these dummy rows. Additional constraints check that the instance and existential function tables define functions (i.e., the output values are unique for a given vector of input values). Additional constraints check that the bounds are satisfied on all function tables and that the universal table is correct.
+	\item Compilation of a logic circuit to a trace type carries over all of the column types, fixed columns, equality constrainable columns, and equality constraints in the logic circuit. It must define the step types and their constraints, the subexpression links table, and the result subexpression ids. Each gate constraint in the logic circuit gives rise to one result subexpression id. The step types divide into load step types, lookup step types, constant step types, operator step types, the void step type, and the assert step type. The load step types yield the value of a variable at a case. The lookup step types yield the value of a lookup term at a case. Each constant step type yields the value of a particular constant. The operator step types implement the following operators: $+, \times / \wedge, \vee, \neg, \leftrightarrow, =, < / \text{ind}_<, \text{max}$. The operator step types include short circuiting step types for those operators which can be short circuited. Multiplication $\times$ and boolean AND $\wedge$ and they can be short circuited when an input is zero. $\vee$ can be short circuited when an input is one. The void step type always outputs zero and it takes its own output as each of its inputs. The assert step type is used on all of the result subexpression ids and it is satisfied when the input value is 1. Implementing the equality and inequality comparisons, as well as the max function, relies on byte decomposition as described in \cite{sigma11}.
+	\item Compilation of a trace type to a Halo 2 circuit takes all of the step type constraints and gates them on the values of the step type selection vector. It carries over all of the fixed values and equality constraints. It adds equality constraints stating that the value of the case used column is the same for all rows belonging to the same case. It adds lookup arguments checking that the input column values are consistent with the corresponding subexpression output values; that all subexpressions are linked to proper input subexpressions for their step types according to the links table; and that all result subexpressions are present where applicable.
+\end{enumerate}
+
+Future directions include:
+
+\begin{enumerate}
+	\item Finishing the integration of the OSL and argument compiler with Halo 2 will allow zk-SNARKs to be created and verified using this system. This will involve compiling out the lookup argument gate constraints; generating Rust code defining the Halo 2 circuit from its representation as a Haskell data structure; and integrating the Haskell argument compiler with the Rust prover code. These efforts are well underway.
+	\item Adding more optimizations to the compiler pipeline will result in lower circuit complexity. There are too many optimization opportunities to mention here. One worth mentioning is that rows can be utilized more efficiently by allowing for cases to use less than the maximum number of rows per case, thus allowing for more cases to fit into the same number of rows. Currently, the compiler makes use of short circuiting step types, which allows for subexpressions to be omitted where they do not need to be evaluated, but the opportunity to use this to pack more cases into the rows is not capitalized.
+	\item Formally verifying the semantics preservation of the OSL and argument compiler will allow users to be confident that if they correctly expressed what they intended to prove in OSL, then the resulting zk-SNARKs do show what they are supposed to show.
+\end{enumerate}
 
 
 \clearpage
