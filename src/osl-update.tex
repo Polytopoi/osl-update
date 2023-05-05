@@ -1574,9 +1574,6 @@ recursive definition.
 	\item $0$ is a term. 1 is a term. $-1$ is a term. These are called constant symbols.
 \end{enumerate}
 
-A ``polynomial term,'' by definition, is a term which is constructed using only rules 1, 3a, 3b, and 4
-above: in other words, it is built out of variables and constants using only addition and multiplication.
-
 First-order formulas (over the language of rings) are defined by the following recursive definition.
 
 \begin{enumerate}
@@ -1605,12 +1602,12 @@ First-order formulas (over the language of rings) are defined by the following r
 			(\phi \to \psi)
 		\end{equation}
 		is a first-order formula. $(\phi \to \psi)$ is called an implication.
-	\item For all first-order formulas $\phi$ and polynomial terms $\beta$,
+	\item For all first-order formulas $\phi$ and terms $\beta$,
 		\begin{equation}
 			\forall < \beta.\ \phi
 		\end{equation}
 		is a first-order formula. $\forall$ is called the universal quantifier. $\beta$ is called the quantifier bound.
-	\item For all first-order formulas $\phi$ and polynomial terms $\beta$,
+	\item For all first-order formulas $\phi$ and terms $\beta$,
 		\begin{equation}
 			\exists < \beta.\ \phi
 		\end{equation}
@@ -1621,7 +1618,7 @@ $\Sigma^1_1$ formulas (over the language of rings) are defined by the following 
 
 \begin{enumerate}
 	\item Every first-order formula is a $\Sigma^1_1$ formula.
-	\item For all $\Sigma^1_1$ formulas $\phi$ and polynomial terms $\gamma$ and non-empty sequences of polynomial terms $\beta_1, ..., \beta_n$,
+	\item For all $\Sigma^1_1$ formulas $\phi$ and terms $\gamma$ and non-empty sequences of terms $\beta_1, ..., \beta_n$,
 		\begin{equation}
 			\exists_f <\gamma (<\beta_1, ..., <\beta_n).\ \phi
 		\end{equation}
@@ -1825,17 +1822,17 @@ has a denotation in $M$.
 			\delta_M(\phi \vee \psi) := \max\{\delta_M(\phi), \delta_M(\psi)\},
 		\end{equation}
 		if $\delta_M(\phi)$ and $\delta_M(\psi)$ are defined.
-	\item For all polynomial terms $\beta$ and first-order formulas $\phi$,
+	\item For all terms $\beta$ and first-order formulas $\phi$,
 		\begin{equation}
 			\delta_M(\forall < \beta.\ \phi) := \min(\{\delta_{M[x_1 \mapsto i]}(\phi) | i \in [\delta_M(\beta)]\} \cup \{1\}),
 		\end{equation}
 		if $\delta_{M[x_1 \mapsto i]}(\phi)$ is defined for each $i$.
-	\item For all polynomial terms $\beta$ and first-order formulas $\phi$,
+	\item For all terms $\beta$ and first-order formulas $\phi$,
 		\begin{equation}
 			\delta_M(\exists < \beta.\ \phi) := \max(\{\delta_{M[x_1 \mapsto i]}(\phi) | i \in [\delta_M(\beta)]\} \cup \{0\}), 
 		\end{equation}
 		if $\delta_{M[x_1 \mapsto i]}(\phi)$ is defined for each $i$.
-	\item For all polynomial terms $\gamma$ and non-empty sequences of polynomial terms $\beta_1, ..., \beta_n$ and $\Sigma^1_1$ formulas $\phi$,
+	\item For all terms $\gamma$ and non-empty sequences of terms $\beta_1, ..., \beta_n$ and $\Sigma^1_1$ formulas $\phi$,
 		\begin{equation}
 			\delta_M(\exists_f < \gamma(<\beta_1, ..., <\beta_n).\ \phi)
 			:= \max_{g \in [\delta_M(\gamma)]^{\prod_{j \in [n]} [\delta_M(\beta_j)]}} \delta_{M[f_1 \mapsto g]}(\phi),
