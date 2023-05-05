@@ -49,6 +49,8 @@ OSL is a layer of abstraction over $\Sigma^1_1$ formulas. $\Sigma^1_1$ formulas 
 	\end{cases}
 \end{equation}
 
+Definitions of the syntax and semantics of OSL and $\Sigma^1_1$ formulas, as well as an example OSL spec, are available in the appendices to this paper.
+
 $\Sigma^1_1$ formulas allow for first-order quantifiers with polynomial bounds, and second-order existential quantifiers with polynomial bounds. See \cite{sigma11-poly-bounds} for more details and a formal definition of $\Sigma^1_1$ formulas. OSL adds rudiments of type theory, including basic functors like list and map type constructors, all of which can be straightforwardly translated into $\Sigma^1_1$ formulas.
 
 There is a natural connection between $\Sigma^1_1$ formulas and computation, in that sequential models of computation are typically natural to express as $\Sigma^1_1$ formulas. If a function $f$ is defined within a sequential model of computation, then $f(x, w) = y$ means in other words that there is a sequence of states $s_0, ..., s_n$ such that $s_0$ is the appropriate initial state for inputs $(x, w)$, $s_n$ is a final state where the program has halted and indicated an output of $y$, and for all $i \in [0, n)$, the step transition function of the model of computation maps $s_i$ to $s_{i+1}$. The same can be expressed as a $\Sigma^1_1$ formula as long as the step transition function is a first-order relation (i.e., it can be expressed using only first-order polynomially bounded quantifiers).
@@ -146,6 +148,1709 @@ Future directions include:
 	\item Adding more optimizations to the compiler pipeline will result in lower circuit complexity. There are too many optimization opportunities to mention here. One worth mentioning is that rows can be utilized more efficiently by allowing for cases to use less than the maximum number of rows per case, thus allowing for more cases to fit into the same number of rows. Currently, the compiler makes use of short circuiting step types, which allows for subexpressions to be omitted where they do not need to be evaluated, but the opportunity to use this to pack more cases into the rows is not capitalized.
 	\item Formally verifying the semantics preservation of the OSL and argument compiler will allow users to be confident that if they correctly expressed what they intended to prove in OSL, then the resulting zk-SNARKs do show what they are supposed to show.
 \end{enumerate}
+
+The following appendices go into more detail about some of the core concepts of this paper. These appendices are largely repeated from \cite{osl-paper,sigma11-poly-bounds}.
+
+\appendix
+
+\section{Example of OSL}
+
+Here is a simple example of an OSL spec. This spec describes the game of
+Sudoku. Given a circuit compiler for OSL, this spec could be used to
+generate zk-SNARKs proving that a given Sudoku problem has a solution,
+without revealing a solution.
+
+\begin{equation}
+	\text{data Value} \cong \text{Fin}(9).
+\end{equation}
+\begin{equation}
+	\text{data Row} \cong \text{Fin}(9).
+\end{equation}
+\begin{equation}
+	\text{data Col} \cong \text{Fin}(9).
+\end{equation}
+\begin{equation}
+	\text{data Cell} \cong \text{Row} \times \text{Col}.
+\end{equation}
+\begin{equation}
+	\text{data Problem} \cong \text{Cell} \to \text{Maybe(Value)}.
+\end{equation}
+\begin{equation}
+	\text{data Solution} \cong \text{Cell} \to \text{Value}.
+\end{equation}
+\begin{equation}
+	\text{data Square} \cong \text{Fin}(3) \times \text{Fin}(3).
+\end{equation}
+\begin{equation}
+	\text{data SquareCell} \cong \text{Fin}(3) \times \text{Fin}(3).
+\end{equation}
+\begin{equation}
+	\text{def three} : \mathbb{N} := 1_{\mathbb{N}} + 1_{\mathbb{N}} + 1_{\mathbb{N}}
+\end{equation}
+\begin{equation}
+	\begin{array}{l}
+		\text{def getCell} : \text{Square} \to \text{SquareCell} \to \text{Cell} \\
+		\qquad := \lambda s : \text{Square} \mapsto \lambda c : \text{SquareCell} \\
+		\qquad \mapsto \text{let}\ s' : \text{Fin}(3) \times \text{Fin}(3) := \text{from(Square)}(s); \\
+		\qquad \text{let}\ c' : \text{Fin}(3) \times \text{Fin}(3) := \text{from(SquareCell)}(c); \\
+		\qquad \text{to(Cell)}((\text{to(Row)(cast}(\text{three} \times_{\mathbb{N}} \text{cast}(\pi_1(s')) +_{\mathbb{N}} \text{cast}(\pi_1(c')))), \\
+		\qquad\qquad
+		\text{to(Col)(cast}(\text{three} \times_{\mathbb{N}} \text{cast}(\pi_2(s')) +_{\mathbb{N}} \text{cast}(\pi_2(c'))))).
+	\end{array}
+\end{equation}
+\begin{equation}
+	\begin{array}{l}
+		\text{def solutionIsWellFormed} : \text{Solution} \to \text{Prop} \\
+		\qquad := \lambda s : \text{Solution} \mapsto
+		\text{let}\ f : \text{Cell} \to \text{Value} := \text{from(Solution)}(s); \\
+		\qquad (\forall r : \text{Row}, \forall v : \text{Value},
+			\exists c : \text{Col}, f(\text{to(Cell)}((r, c))) = v) \\
+		\qquad \wedge\ (\forall c : \text{Col}, \forall v : \text{Value},
+			\exists r : \text{Row}, f(\text{to(Cell)}((r, c))) = v) \\
+		\qquad \wedge\ (\forall r : \text{Square}, \forall v : \text{Value},
+			\exists c : \text{SquareCell}, f(\text{getCell}(r, c)) = v).
+	\end{array}
+\end{equation}
+\begin{equation}
+	\begin{array}{l}
+		\text{def solutionMatchesProblem} : \text{Problem} \to \text{Solution} \to \text{Prop} \\
+		\qquad := \lambda p : \text{Problem} \mapsto \lambda s : \text{Solution} \\
+		\qquad \mapsto \text{let}\ f : \text{Cell} \to \text{Maybe(Value)} := \text{from(Problem)}(p); \\
+		\qquad \text{let}\ g : \text{Cell} \to \text{Value} := \text{from(Solution)}(s); \\
+		\qquad \forall c : \text{Cell}, f(c) = \text{nothing} \vee f(c) = \text{just}(g(c)).
+	\end{array}
+\end{equation}
+\begin{equation}
+	\begin{array}{l}
+		\text{def problemIsSolvable} : \text{Problem} \to \text{Prop} \\
+		\qquad := \lambda p : \text{Problem} \mapsto
+		\exists s : \text{Solution}, \text{solutionMatchesProblem}(p,s)
+		\wedge \text{solutionIsWellFormed}(s).
+	\end{array}
+\end{equation}
+
+
+\section{Grammar of OSL}
+
+The grammar of OSL specs is defined by a sequent calculus.
+This syntactic definition of the language characterizes type
+correctness as well as what is more usually considered
+part of syntax in programming language theory. In
+specifying a programming language, the syntax is often first defined by using a context-free grammar, and then
+the semantic rules that determine
+which syntactically valid programs denote semantically
+valid, type-correct programs are separately defined. The definition of OSL
+combines these separate concerns, which are sometimes viewed
+as syntax and semantics, into one context-sensitive grammar
+defined as a sequent calculus.
+
+For an introduction to reading and understanding sequent
+calculus systems, readers are referred to \cite{sequent-calculus}.
+
+Three syntactic sorts exist in OSL: expressions,
+judgments, and sequents. An expression may, in a given context,
+denote a type, a value, or a proposition.
+A judgment expresses that an expression belongs to a type.
+A sequent expresses either that a context is valid or
+that a judgment is true in a given context.
+
+The different expression forms are implied by the following sequent calculus
+definition of OSL. A judgment takes the form $\bar{x} : \bar{A}$,
+where $\bar{x}$ and $\bar{A}$ are metavariables denoting
+expressions. A context is a comma-separated list of zero or
+more declarations, with the different declaration forms being
+implied by the sequent calculus definition of OSL. An empty
+context is written as $()$.
+
+Expressions may contain variable names, which
+are denoted in the following sequent calculus definitions by
+metavariables written as lowercase Latin letters: $a, b, ...$.
+Metavariables denoting expressions are written either as
+lowercase Greek letters ($\alpha, \beta, ...$), or as
+lowercase Latin letters with overlines ($\bar{a}, \bar{b}, ...$).
+By convention, Greek letters are used for metavariables
+for expressions denoting propositions, and Latin letters with overlines
+are used for metavariables for expressions denoting values.
+
+In this sequent calculus definition, $\Gamma$ is a
+metavariable denoting an arbitrary context.
+
+A sequent takes either the form $\Gamma\ \text{ctx}$ (denoting
+that the context $\Gamma$ is valid)
+or the form $\Gamma \vdash \bar{x} : \alpha$ (denoting that in the
+context $\Gamma$, the judgment $\bar{x} : \alpha$ is true).
+
+Given an expression $\bar{x}$, $\text{free}(\bar{x})$ denotes
+the set of variable names that occur freely in $\bar{x}$. A free
+occurrence of a variable name is one that is not bound by a
+quantifier ($\forall$ or $\exists$), a lambda abstraction ($\lambda$),
+or a let binding.
+
+In OSL expressions, $\to$ associates to the right.
+Function application is curried, but written in the usual mathematical
+notation, so that $f(x)$ denotes the application of $f$ to $x$,
+$f(x)(y)$ denotes the application of $f$ to $x$ and $y$,
+and $f(x, y)$ denotes the same as $f(x)(y)$.
+
+The first rule allows for derivation with no premises that an
+empty context is valid:
+
+\begin{equation}
+	\frac{}{()\ \text{ctx}}.
+\end{equation}
+
+The following rules introduce basic typing judgments, stating that
+Prop (the type of propositions) is a type in any context, and
+types are closed under formation of function types:
+
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}}{\Gamma \vdash \text{Prop} : \text{Type}}
+\end{equation}
+
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Type} \qquad
+	      \Gamma \vdash \beta : \text{Type}}
+	      {\Gamma \vdash (\alpha \to \beta) : \text{Type}}.
+\end{equation}
+
+The following rule enables introduction of a variable of a given
+type into a context:
+
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Type}
+	\qquad x \notin \text{free}(\Gamma)}
+	{(\Gamma, x : \alpha)\ \text{ctx}}.
+\end{equation}
+
+The following rules declare the primitive scalar types.
+In OSL, there are three primitive scalar types:
+natural numbers ($\mathbb{N}$), integers ($\mathbb{Z}$),
+and finite sets of $n$ distinct values ($\text{Fin}(n)$,
+for $n \in \mathbb{N}$). Throughout this paper, $0 \in \mathbb{N}$.
+
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}}{\Gamma \vdash \mathbb{N} : \text{Type}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}{\Gamma \vdash \mathbb{Z} : \text{Type}}
+	\qquad
+	\frac{\Gamma\ \text{ctx} \qquad n \in \mathbb{N}}{\Gamma \vdash \text{Fin}(n) : \text{Type}}
+\end{equation}
+
+The following rules declare the types of the related
+functions and constants for the scalar types.
+
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash +_{\mathbb{N}} : \mathbb{N} \to \mathbb{N} \to \mathbb{N}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash \times_{\mathbb{N}} : \mathbb{N} \to \mathbb{N} \to \mathbb{N}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash 0_{\mathbb{N}} : \mathbb{N}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash 1_{\mathbb{N}} : \mathbb{N}}
+\end{equation}
+
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash +_{\mathbb{Z}} : \mathbb{Z} \to \mathbb{Z} \to \mathbb{Z}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash \times_{\mathbb{Z}} : \mathbb{Z} \to \mathbb{Z} \to \mathbb{Z}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash 0_{\mathbb{Z}} : \mathbb{Z}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash 1_{\mathbb{Z}} : \mathbb{Z}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash -1_{\mathbb{Z}} : \mathbb{Z}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash \text{cast} : \mathbb{N} \to \mathbb{Z}}
+	\qquad
+	\frac{\Gamma\ \text{ctx} \qquad n \in \mathbb{N}}
+	{\Gamma \vdash \text{cast} : \text{Fin}(n) \to \mathbb{N}}
+	\qquad
+	\frac{\Gamma\ \text{ctx} \qquad n \in \mathbb{N}}
+	{\Gamma \vdash \text{cast} : \mathbb{N} \to \text{Fin}(n)}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash \text{cast} : \mathbb{Z} \to \mathbb{N}}
+\end{equation}
+Note that casting from integers to naturals, or a finite type to naturals,
+is a partial function, where the result is defined only if the argument is
+in the codomain.
+\begin{equation}
+	\frac{\Gamma\ \text{ctx} \qquad n, m \in \mathbb{N} \qquad m \geq n}
+	{\Gamma \vdash \text{cast} : \text{Fin}(n) \to \text{Fin}(m)}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}\ \qquad n, m \in \mathbb{N} \qquad m < n}
+	{\Gamma \vdash \text{fin}(m) : \text{Fin}(n)}
+\end{equation}
+
+The following rules introduce typing judgments for (Cartesian) products,
+coproducts (i.e., sum types), and functions, and their related primitives.
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Type}
+	\qquad \Gamma \vdash \beta : \text{Type}}
+	{\Gamma \vdash \alpha \times \beta : \text{Type}}
+	\qquad
+	\frac{\Gamma \vdash \alpha : \text{Type}
+	\qquad \Gamma \vdash \beta : \text{Type}}
+	{\Gamma \vdash (,) : \alpha \to \beta \to \alpha \times \beta}
+\end{equation}
+At times, we write a function application $(,)(x, y)$
+in the abbreviated form $(x,y)$.
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Type}
+	\qquad \Gamma \vdash \beta : \text{Type}}
+	{\Gamma \vdash \pi_1 : (\alpha \times \beta) \to \alpha}
+	\qquad
+	\frac{\Gamma \vdash \alpha : \text{Type}
+	\qquad \Gamma \vdash \beta : \text{Type}}
+	{\Gamma \vdash \pi_2 : (\alpha \times \beta) \to \beta}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \bar{f} : \gamma \to \alpha
+	\qquad \Gamma \vdash \bar{g} : \gamma \to \beta}
+	{\bar{f} \times \bar{g} : \gamma \to (\alpha \times \beta)}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Type}
+	\qquad \Gamma \vdash \beta : \text{Type}}
+	{\Gamma \vdash \alpha \oplus \beta : \text{Type}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Type}
+	\qquad \Gamma \vdash \beta : \text{Type}}
+	{\Gamma \vdash \iota_1 : \alpha \to (\alpha \oplus \beta)}
+	\qquad
+	\frac{\Gamma \vdash \alpha : \text{Type}
+	\qquad \Gamma \vdash \beta : \text{Type}}
+	{\Gamma \vdash \iota_2 : \beta \to (\alpha \oplus \beta)}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \bar{f} : \alpha \to \gamma
+	\qquad \Gamma \vdash \bar{g} : \beta \to \gamma
+	\qquad \Gamma \vdash \gamma : \text{FiniteDim}}
+	{\Gamma \vdash \bar{f} \oplus \bar{g} : (\alpha \oplus \beta) \to \gamma}
+\end{equation}
+The restriction $\Gamma \vdash \gamma : \text{FiniteDim}$ is present to
+satisfy a technical restriction in the translation to $\Sigma^1_1$ formulas;
+translating this function is easier when the result is a series
+of first-order variables.
+
+The following rules define which types are finite-dimensional.
+The judgment $\Gamma \vdash \alpha : \text{FiniteDim}$ appears to be
+a type judgment, but like Type itself, FiniteDim is not a type; it can appear only
+by itself on the right-hand side of a judgment.
+\begin{equation}
+	\text{Scalar} = \{\mathbb{N}, \mathbb{Z}\} \cup \{\text{Fin}(n)\ |\ n \in \mathbb{N}\}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}
+	\qquad \alpha \in \text{Scalar}}
+	{\Gamma \vdash \alpha : \text{FiniteDim}}
+	\qquad
+	\frac{\Gamma \vdash \alpha : \text{FiniteDim}}
+	{\Gamma \vdash \text{Maybe}(\alpha) : \text{FiniteDim}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{FiniteDim}
+	\qquad \Gamma \vdash \beta : \text{FiniteDim}}
+	{\Gamma \vdash \alpha \times \beta : \text{FiniteDim}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{FiniteDim}
+	\qquad \Gamma \vdash \beta : \text{FiniteDim}}
+	{\Gamma \vdash \alpha \oplus \beta : \text{FiniteDim}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{FiniteDim}
+	\qquad (\text{data}\ x \cong \alpha) \in \Gamma}
+	{\Gamma \vdash x : \text{FiniteDim}}
+\end{equation}
+Finally, the function rules are:
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Type}
+	\qquad \Gamma \vdash \beta : \text{Type}}
+	{\Gamma \vdash \alpha \to \beta : \text{Type}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma, x : \alpha \vdash \bar{y} : \beta}
+	{\Gamma \vdash (\lambda x : \alpha \mapsto \bar{y}) : \alpha \to \beta}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \bar{f} : \alpha \to \beta
+	\qquad \Gamma \vdash \bar{x} : \alpha}
+	{\Gamma \vdash \bar{f}(\bar{x}) : \beta}.
+\end{equation}
+The following rules allow for the introduction of new data types
+that are isomorphic to existing data types (similar to newtypes
+in Haskell):
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Type}
+	\qquad x \notin \text{free}(\Gamma)}
+	{(\Gamma, \text{data}\ x \cong \alpha)\ \text{ctx}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}
+		\qquad (\text{data}\ x \cong \alpha) \in \Gamma}
+		{\Gamma \vdash x : \text{Type}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma\ \text{ctx} \qquad
+	(\text{data}\ x \cong \alpha) \in \Gamma}
+	{\Gamma \vdash \text{to}(x) : \alpha \to x}
+	\qquad
+	\frac{\Gamma\ \text{ctx} \qquad
+	(\text{data}\ x \cong \alpha) \in \Gamma}
+	{\Gamma \vdash \text{from}(x) : x \to \alpha}.
+\end{equation}
+The following rules enable the introduction of equational
+definitions and their use for type synonyms:
+\begin{equation}
+	\frac{\Gamma \vdash \bar{a} : \alpha
+	\qquad x \notin \text{free}(\Gamma)}
+	{(\Gamma, \text{def}\ x : \alpha := \bar{a})\ \text{ctx}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}
+	\qquad (\text{def}\ x : \alpha := \bar{a}) \in \Gamma}
+	{\Gamma \vdash x : \alpha}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash t : \text{Type}
+	\qquad (\text{def}\ t : \beta := \alpha) \in \Gamma
+	\qquad \Gamma \vdash x : t}
+	{\Gamma \vdash x : \alpha}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash t : \text{Type}
+	\qquad (\text{def}\ t : \beta := \alpha) \in \Gamma
+	\qquad \Gamma \vdash \bar{x} : \alpha}
+	{\Gamma \vdash \bar{x} : t}.
+\end{equation}
+The following rule allows for the formation of let expressions:
+\begin{equation}
+	\frac{\Gamma, \text{def}\ x : \alpha := \bar{y} \vdash \bar{z} : \beta}
+	{\Gamma \vdash
+	 (\text{let}\ x : \alpha := \bar{y}; \bar{z}) : \beta}.
+\end{equation}
+The following rules provide the typing rules for the useful
+functors Maybe and List, along
+with several basic functions for working with these functors:
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}}
+	{\Gamma \vdash \text{Maybe}(\alpha) : \text{Type}}
+	\qquad
+	\frac{\Gamma \vdash \bar{f} : \alpha \to \beta}
+	{\Gamma \vdash \text{Maybe}(\bar{f}) : \text{Maybe}(\alpha) \to \text{Maybe}(\beta)}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Type}}
+	{\Gamma \vdash \text{just} : \alpha \to \text{Maybe}(\alpha)}
+	\qquad
+	\frac{\Gamma \vdash \alpha : \text{Type}}
+	{\Gamma \vdash \text{nothing} : \text{Maybe}(\alpha)}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{FiniteDim}
+	\qquad \Gamma \vdash \beta : \text{FiniteDim}
+	\qquad \Gamma \vdash \bar{f} : \alpha \to \beta}
+	{\Gamma \vdash \text{maybe}(\bar{f}) : \beta \to \text{Maybe}(\alpha) \to \beta}.
+\end{equation}
+The following function is useful for extracting a value from a Maybe when one is known to be present
+(with undefined result if no value is present):
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Type}}
+	{\Gamma \vdash \text{exists} : \text{Maybe}(\alpha) \to \alpha}.
+\end{equation}
+The rules for List have a circular dependency with the rules for
+Quantifiable judgments, defined in (\ref{eq:quantifiable-first})-(\ref{eq:quantifiable-last}).
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}}
+	{\Gamma \vdash \text{List}(\alpha) : \text{Type}}
+\end{equation}
+% \begin{equation}
+% 	\frac{\Gamma \vdash \bar{f} : \alpha \to \beta
+% 	\qquad \Gamma \vdash \alpha : \text{Quantifiable}
+% 	\qquad \Gamma \vdash \beta : \text{Quantifiable}}
+% 	{\Gamma \vdash \text{List}(f) : \text{List}(\alpha) \to \text{List}(\beta)}
+% \end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}}
+	{\Gamma \vdash \text{length} : \text{List}(\alpha) \to \mathbb{N}}
+	\qquad
+	\frac{\Gamma \vdash \alpha : \text{Type}}
+	{\Gamma \vdash \text{nth} : \text{List}(\alpha) \to \mathbb{N} \to \alpha}
+\end{equation}
+The result of nth when the index is out of range is undefined.
+
+Because translating the general functor operation of List on morphisms
+(functions) is difficult, OSL does not include the general functor
+operation of List on morphisms. However, OSL does include several
+special cases of the List functor that are useful and easy to translate:
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}
+	\qquad \Gamma \vdash \beta : \text{Quantifiable}}
+	{\Gamma \vdash \text{List}(\pi_1)
+	: \text{List}(\alpha \times \beta) \to \text{List}(\alpha)}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}
+	\qquad \Gamma \vdash \beta : \text{Quantifiable}}
+	{\Gamma \vdash \text{List}(\pi_2)
+	: \text{List}(\alpha \times \beta) \to \text{List}(\beta)}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}
+	\qquad (\text{data}\ x\ \cong \alpha) \in \Gamma}
+	{\Gamma \vdash \text{List}(\text{to}(x))
+	: \text{List}(\alpha) \to \text{List}(x)}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}
+	\qquad (\text{data}\ x \cong \alpha) \in \Gamma}
+	{\Gamma \vdash \text{List}(\text{from}(x))
+	: \text{List}(x) \to \text{List}(\alpha)}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}}
+	{\Gamma \vdash \text{List(length)}
+	: \text{List}(\text{List}(\alpha)) \to \text{List}(\mathbb{N})}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}
+	\qquad \Gamma \vdash \beta : \text{Quantifiable}}
+	{\Gamma \vdash \text{List}(\text{Maybe}(\pi_1))
+	: \text{List}(\text{Maybe}(\alpha \times \beta)) \to \text{List}(\text{Maybe}(\alpha))}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}
+	\qquad \Gamma \vdash \beta : \text{Quantifiable}}
+	{\Gamma \vdash \text{List}(\text{Maybe}(\pi_2))
+	: \text{List}(\text{Maybe}(\alpha \times \beta)) \to \text{List}(\text{Maybe}(\beta))}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}}
+	{\Gamma \vdash \text{List(Maybe(length))} : \text{List}(\text{Maybe}(\text{List}(\alpha))) \to \text{List}(\text{Maybe}(\mathbb{N}))}.
+\end{equation}
+
+Lists of numeric types support a sum operation. The following
+rules define what a numeric type is:
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash \mathbb{N} : \text{Num}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash \mathbb{Z} : \text{Num}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Num}
+	\qquad (\text{data}\ a \cong \alpha) \in \Gamma}
+	{\Gamma \vdash a : \text{Num}}.
+\end{equation}
+The following rules define the types of the sum operation:
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Num}}
+	{\Gamma \vdash \text{sum} : \text{List}(\alpha) \to \alpha}
+	\qquad
+	\frac{\Gamma \vdash \alpha : \text{Num}}
+	{\Gamma \vdash \text{sum} : \text{List}(\text{Maybe}(\alpha)) \to \alpha}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Num}}
+	{\Gamma \vdash \text{sum} : \text{List}(\text{List}(\alpha)) \to \alpha}
+	\qquad
+	\frac{\Gamma \vdash \alpha : \text{Num}}
+	{\Gamma \vdash \text{sum} : \text{List}(\text{List}(\text{Maybe}(\alpha))) \to \alpha}.
+\end{equation}
+The following are the map-related rules:
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}
+	\qquad \Gamma \vdash \alpha : \text{FiniteDim}
+	\qquad \Gamma \vdash \beta : \text{Quantifiable}}
+	{\Gamma \vdash \text{Map}(\alpha, \beta) : \text{Type}}
+\end{equation}
+% \begin{equation}
+% 	\frac{\Gamma \vdash \bar{f} : \alpha \to \beta
+% 	\qquad \Gamma \vdash \bar{g} : \gamma \to \delta
+% 	\qquad \Gamma \vdash \alpha : \text{FiniteDim}}
+% 	{\Gamma \vdash \text{Map}(\bar{f}, \bar{g}) : \text{Map}(\alpha, \gamma) \to \text{Map}(\beta, \delta)}
+% \end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{FiniteDim}
+	\qquad \Gamma \vdash \beta : \text{Quantifiable}}
+	{\Gamma \vdash \text{lookup} : \alpha \to \text{Map}(\alpha, \beta) \to \text{Maybe}(\beta)}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{FiniteDim}
+	\qquad \Gamma \vdash \beta : \text{Quantifiable}}
+	{\Gamma \vdash \text{keys} : \text{Map}(\alpha, \beta) \to \text{List}(\alpha)}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \alpha : \text{FiniteDim}
+		\qquad \Gamma \vdash \beta : \text{Quantifiable}
+		\qquad \Gamma \vdash \gamma : \text{Quantifiable}
+	}{
+		\Gamma \vdash \text{Map}(\pi_1)
+		: \text{Map}(\alpha, \beta \times \gamma)
+		\to \text{Map}(\alpha, \beta)
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \alpha : \text{FiniteDim}
+		\qquad \Gamma \vdash \beta : \text{Quantifiable}
+		\qquad \Gamma \vdash \gamma : \text{Quantifiable}
+	}{
+		\Gamma \vdash \text{Map}(\pi_2)
+		: \text{Map}(\alpha, \beta \times \gamma)
+		\to \text{Map}(\alpha, \gamma)
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \alpha : \text{FiniteDim}
+		\qquad \Gamma \vdash \beta : \text{Quantifiable}
+		\qquad (\text{data}\ x \cong \beta) \in \Gamma
+	}{
+		\Gamma \vdash \text{Map}(\text{to}(x)) : \text{Map}(\alpha, \beta) \to \text{Map}(\alpha, x)
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \alpha : \text{FiniteDim}
+		\qquad \Gamma \vdash \beta : \text{Quantifiable}
+		\qquad (\text{data}\ x \cong \beta) \in \Gamma
+	}{
+		\Gamma \vdash \text{Map}(\text{from}(x)) : \text{Map}(\alpha, \beta) \to \text{Map}(\alpha, x)
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \alpha : \text{FiniteDim}
+		\qquad \Gamma \vdash \beta : \text{Num}
+	}{
+		\Gamma \vdash \text{sum} : \text{Map}(\alpha, \beta) \to \beta
+	}.
+\end{equation}
+
+The following function compositions are defined as primitives, because they are
+useful and easy to translate into $\Sigma^1_1$ formulas:
+\begin{equation}
+	\frac{
+		\Gamma \vdash \alpha : \text{FiniteDim}
+		\qquad \Gamma \vdash \beta : \text{Quantifiable}
+	}{
+		\Gamma \vdash (\text{sum} \circ \text{Map(length))} : \text{Map}(\alpha, \text{List}(\beta)) \to \mathbb{N}
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \alpha : \text{FiniteDim}
+		\qquad \Gamma \vdash \beta : \text{Num}
+		\qquad \Gamma \vdash \bar{k} : \alpha
+	}{
+		\Gamma \vdash (\text{sum} \circ \text{List(lookup(}\bar{k}))) : \text{List}(\text{Map}(\alpha, \beta)) \to \beta
+	}.
+\end{equation}
+
+The following rule defines the types for which
+equality propositions can be formed in OSL:
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{FiniteDim}}
+	{\Gamma \vdash \alpha : \text{Eq}}.
+\end{equation}
+Of note, although Eq appears to be a type, it is not a type.
+It cannot appear except by itself on the right-hand side of
+a judgment.
+
+The following rules pertain to the formation of propositions:
+\begin{equation}
+	\frac{\Gamma \vdash \bar{x} : \alpha
+	\qquad \Gamma \vdash \bar{y} : \alpha
+	\qquad \Gamma \vdash \alpha : \text{Eq}}
+	{\Gamma \vdash (\bar{x} = \bar{y}) : \text{Prop}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \bar{x} : \alpha
+	\qquad \Gamma \vdash \bar{y} : \alpha
+	\qquad \Gamma \vdash \alpha : \text{Num}}
+	{\Gamma \vdash (\bar{x} \leq \bar{y}) : \text{Prop}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \phi : \text{Prop}
+	\qquad \Gamma \vdash \psi : \text{Prop}}
+	{\Gamma \vdash (\phi \wedge \psi) : \text{Prop}}
+	\qquad
+	\frac{\Gamma \vdash \phi : \text{Prop}
+	\qquad \Gamma \vdash \psi : \text{Prop}}
+	{\Gamma \vdash (\phi \vee \psi) : \text{Prop}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \phi : \text{Prop}}
+	{\Gamma \vdash \neg\phi : \text{Prop}}
+	\qquad
+	\frac{\Gamma \vdash \phi : \text{Prop}
+	\qquad \Gamma \vdash \psi : \text{Prop}}
+	{\Gamma \vdash (\phi \to \psi) : \text{Prop}}.
+\end{equation}
+Because OSL allows for only universal quantification over finite types,
+the following rules define what a finite type is:
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}\ \qquad n \in \mathbb{N}}
+	{\Gamma \vdash \text{Fin}(n) : \text{Finite}}
+	\qquad
+	\frac{\Gamma \vdash \alpha : \text{Finite}}
+	{\Gamma \vdash \text{Maybe}(\alpha) : \text{Finite}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Finite}
+	\qquad \Gamma \vdash \beta : \text{Finite}}
+	{\Gamma \vdash \alpha \times \beta : \text{Finite}}
+	\qquad
+	\frac{\Gamma \vdash \alpha : \text{Finite}
+	\qquad \Gamma \vdash \beta : \text{Finite}}
+	{\Gamma \vdash \alpha \oplus \beta : \text{Finite}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Finite}
+	\qquad (\text{data}\ x \cong \alpha) \in \Gamma}
+	{\Gamma \vdash x : \text{Finite}}.
+\end{equation}
+Although Finite appears to be a type, it is not a type.
+It cannot appear except by itself on the right-hand side
+of a judgment.
+
+Universal quantifiers can be applied only around propositions
+that do not contain existential quantifiers over infinite
+types. To capture this notion, the following rules extend
+the Finite judgment to propositions.
+\begin{equation}
+	\frac{\Gamma \vdash (\bar{x} = \bar{y}) : \text{Prop}}
+	{\Gamma \vdash (\bar{x} = \bar{y}) : \text{Finite}}
+	\qquad
+	\frac{\Gamma \vdash (\bar{x} \leq \bar{y}) : \text{Prop}}
+	{\Gamma \vdash (\bar{x} \leq \bar{y}) : \text{Finite}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \phi : \text{Finite}
+	\qquad \Gamma \vdash \phi : \text{Prop}
+	\qquad \Gamma \vdash \psi : \text{Finite}
+	\qquad \Gamma \vdash \psi : \text{Prop}}
+	{\Gamma \vdash (\phi \wedge \psi) : \text{Finite}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \phi : \text{Finite}
+	\qquad \Gamma \vdash \phi : \text{Prop}
+	\qquad \Gamma \vdash \psi : \text{Finite}
+	\qquad \Gamma \vdash \psi : \text{Prop}}
+	{\Gamma \vdash (\phi \vee \psi) : \text{Finite}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \phi : \text{Finite}
+	\qquad \Gamma \vdash \phi : \text{Prop}}
+	{\Gamma \vdash \neg\phi : \text{Finite}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \phi : \text{Finite}
+	\qquad \Gamma \vdash \phi : \text{Prop}
+	\qquad \Gamma \vdash \psi : \text{Finite}
+	\qquad \Gamma \vdash \psi : \text{Prop}}
+	{\Gamma \vdash (\phi \to \psi) : \text{Finite}}
+\end{equation}
+Existential quantifiers can quantify only over types that
+are built by using only finite-dimensional types in the domains
+of function types. This class of types is called Quantifiable,
+and is defined by the following rules.
+\begin{equation}
+	\label{eq:quantifiable-first}
+	\frac{\Gamma\ \text{ctx}\
+	 \qquad \alpha \in \text{Scalar}}
+	{\Gamma \vdash \text{Fin}(n) : \text{Quantifiable}}
+	\qquad
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}}
+	{\Gamma \vdash \text{Maybe}(\alpha) : \text{Quantifiable}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}
+	\qquad \Gamma \vdash \beta : \text{Quantifiable}}
+	{\Gamma \vdash \alpha \times \beta : \text{Quantifiable}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}
+	\qquad \Gamma \vdash \beta : \text{Quantifiable}}
+	{\Gamma \vdash \alpha \oplus \beta : \text{Quantifiable}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}
+	\qquad (\text{data}\ x \cong \alpha) \in \Gamma}
+	{\Gamma \vdash x : \text{Quantifiable}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{FiniteDim}
+	\qquad \Gamma \vdash \beta : \text{Quantifiable}}
+	{\Gamma \vdash \alpha \to \beta : \text{Quantifiable}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Quantifiable}}
+	{\Gamma \vdash \text{List}(\alpha) : \text{Quantifiable}}
+\end{equation}
+\begin{equation}
+	\label{eq:quantifiable-last}
+	\frac{\Gamma \vdash \alpha : \text{FiniteDim}
+	\qquad \Gamma \vdash \beta : \text{Quantifiable}}
+	{\Gamma \vdash \text{Map}(\alpha, \beta) : \text{Quantifiable}}
+\end{equation}
+
+The following rules pertain to the formation of quantified
+propositions:
+\begin{equation}
+	\frac{\Gamma, x : \alpha \vdash \phi : \text{Prop}
+	\qquad \Gamma, x : \alpha \vdash \phi : \text{Finite}
+	\qquad \Gamma \vdash \alpha : \text{Finite}}
+	{\Gamma \vdash (\forall x : \alpha.\ \phi) : \text{Prop}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma, x : \alpha \vdash \phi : \text{Prop}
+	\qquad \Gamma \vdash \alpha : \text{Quantifiable}}
+	{\Gamma \vdash (\exists x : \alpha.\ \phi) : \text{Prop}}.
+\end{equation}
+The following rules allow for the formation of Finite judgments
+of quantified propositions:
+\begin{equation}
+	\frac{\Gamma \vdash (\forall x : \alpha.\ \phi) : \text{Prop}}
+	{\Gamma \vdash (\forall x : \alpha.\ \phi) : \text{Finite}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma, x : \alpha \vdash \phi : \text{Prop}
+	\qquad \Gamma, x : \alpha \vdash \phi : \text{Finite}
+	\qquad \Gamma \vdash \alpha : \text{Finite}}
+	{\Gamma \vdash (\exists x : \alpha.\ \phi) : \text{Finite}}.
+\end{equation}
+
+
+\section{OSL denotational semantics}
+
+The denotational semantics for OSL assigns denotations to expressions
+relative to denotational contexts. A denotation is a set.
+A denotational context consists of a context $\Gamma$, a universe of
+sets $U$, and a partial function $C : \text{Name} \to U$ that
+assigns denotations to each unbound variable in $\Gamma$.
+Here, Name denotes the set of OSL variable names.
+OSL contexts consist of three types of declarations:
+unbound variable declarations $x : \alpha$, equational definitions
+$\text{def}\ x : \alpha := \bar{y}$, and data declarations
+$\text{data}\ x \cong \alpha$. The unbound variables in a context
+$\Gamma$ are those occurring on the left-hand sides of variable
+declarations $(x : \alpha) \in \Gamma$.
+
+The universe $U$ is required to be a Grothendieck universe.
+A Grothendieck universe is a set in which
+mathematics can be performed. Specifically, by definition, a set $U$ is a Grothendieck
+universe if and only if:
+\begin{enumerate}
+	\item For all $x, y$, if $x \in U$ and $y \in x$, then $y \in U$.
+	\item For all $x, y \in U$, $\{x,y\} \in U$.
+	\item For all $x \in U$, $\mathcal{P}(X) \in U$. $\mathcal{P}(X)$ is the power set of $X$, i.e.,
+		\begin{equation}
+			\mathcal{P}(X) = \{Y\ |\ Y \subseteq X\}.
+		\end{equation}
+	\item For all sets $I \in U$ and families $\{x_i\}_{i \in I}$ of
+		elements of $U$,
+		\begin{equation}
+			\left(\bigcup_{i \in I} x_i \right) \in U.
+		\end{equation}
+\end{enumerate}
+Any Grothendieck universe $U$ can be used as the universe of
+a denotational context. A denotational context is written
+in the form $\Gamma,U,C$, where $\Gamma$ is the context,
+$U$ is the universe, and $C$ is the map from names to
+elements of $U$.
+
+The following sequent calculus delineates the denotational semantics
+of OSL, by providing rules for the formation of denotational
+contexts and judgments of denotations relative to denotational
+contexts. These rules implicitly define, relative to a
+denotational context, a partial denotation
+function $\Delta$ from expressions to denotations (i.e.,
+elements of the universe $U$ of the related denotational
+context). The sequent $\Gamma,U,C\ \text{dctx}$ expresses
+that $\Gamma,U,C$ is a valid denotational context.
+The sequent $\Gamma,U,C \vdash \Delta(\bar{x}) = X$
+expresses that, relative to the denotational context
+$\Gamma,U,C$, the denotation of $\bar{x}$ is $X$
+(and $X \in U$ is implied).
+
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}
+	\qquad U\ \text{is a Grothendieck universe}}
+	{\Gamma,U,\emptyset\ \text{dctx}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}
+	\qquad (x : \alpha) \in \Gamma
+	\qquad \Gamma,U,C \vdash \Delta(\alpha) = A
+	\qquad a \in A}
+	{((\Gamma, x : \alpha), U, C \cup \{(x,a)\})\ \text{dctx}}
+\end{equation}
+The various sequent rules all preserve the invariant
+that if $\Gamma,U,C$ is a denotational context,
+then $\text{dom}(C)$ is a subset of the set of variables
+in $\text{free}(\Gamma)$ that are not bound by data or
+def declarations.
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\text{Type}) =
+	\{A \in U\ |\ \exists \alpha,
+	(\Gamma \vdash \alpha : \text{Type})
+	\wedge (\Gamma,U,C \vdash \Delta(\alpha) = A)\}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\text{Prop}) = \{0,1\}}
+\end{equation}
+In the following rule, $B^A$ represents the set of functions
+with domain $A$ and codomain $B$, where a function is represented
+as the set of ordered pairs of its inputs and outputs.
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Type}
+	\qquad \Gamma \vdash \beta : \text{Type}
+	\qquad \Gamma,U,C \vdash \Delta(\alpha) = A
+	\qquad \Gamma,U,C \vdash \Delta(\beta) = B}
+	{\Gamma,U,C \vdash \Delta(\alpha \to \beta) = B^A}
+\end{equation}
+In the following rules for basic numeric types, the mentioned denotations,
+$\mathbb{N}, +_\mathbb{N}$, and so forth, are defined within $U$ in the usual
+manner, with the set of natural numbers being equated with the set of
+finite von Neumann ordinals, and the set of integers being equated with
+the set $\{-1,1\} \times \mathbb{N}$.
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\mathbb{N}) = \mathbb{N}}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\mathbb{Z}) = \mathbb{Z}}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}
+	\qquad n \in \mathbb{N}}
+	{\Gamma,U,C \vdash \Delta(\text{Fin}(n)) = \{0,...,n-1\}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(+_{\mathbb{N}}) = +_{\mathbb{N}}}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(+_{\mathbb{Z}}) = +_{\mathbb{Z}}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\times_{\mathbb{N}}) = \times_{\mathbb{N}}}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\times_{\mathbb{Z}}) = \times_{\mathbb{Z}}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(0_{\mathbb{N}}) = 0_{\mathbb{N}}}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(1_{\mathbb{N}}) = 1_{\mathbb{N}}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(0_{\mathbb{Z}}) = 0_{\mathbb{Z}}}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(1_{\mathbb{Z}}) = 1_{\mathbb{Z}}}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(-1_{\mathbb{Z}}) = -1_{\mathbb{Z}}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\text{cast}) =
+	\{(x,x)\ |\ x \in \mathbb{Z}\} \cup
+	\{(x,(1,x))\ |\ x \in \mathbb{Z}\}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}
+	\qquad n \in \mathbb{N}}
+	{\Gamma,U,C \vdash \Delta(\text{fin}(n)) = n}
+\end{equation}
+The following rules provide denotations for product types and
+related functions:
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Type}
+	\qquad \Gamma \vdash \beta : \text{Type}
+	\qquad \Gamma,U,C \vdash \Delta(\alpha) = A
+	\qquad \Gamma,U,C \vdash \Delta(\beta) = B}
+	{\Gamma,U,C \vdash \Delta(\alpha \times \beta) = A \times B}.
+\end{equation}
+Here, the set $A \times B$ is defined in the usual manner, as the
+set of ordered pairs $(a,b)$ where $a \in A$ and $b \in B$.
+Ordered pairs are defined in the usual manner, with the pair
+$(a,b)$ being encoded as the set $\{\{a\},\{a,b\}\}$
+(which contains sufficient information to discern the elements of the pair and which one is first).
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\pi_1) =
+	\{((x,y),x)\ |\ \exists A, B \in \Delta(\text{Type}),
+	x \in A \wedge y \in B\}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\pi_2) =
+	\{((x,y),y)\ |\ \exists A, B \in \Delta(\text{Type}),
+	\ x \in A \wedge y \in B\}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \bar{f} : \gamma \to \alpha
+	\qquad \Gamma \vdash \bar{G} : \gamma \to \beta
+	\qquad \Gamma,U,C \vdash \Delta(\bar{f}) = F
+	\qquad \Gamma,U,C \vdash \Delta(\bar{g}) = G}
+	{\Gamma,U,C \vdash \Delta(\bar{f} \times \bar{g}) =
+	\{(x,(y,z))\ |\ (x,y) \in F \wedge (x,z) \in G\}}
+\end{equation}
+The following rules provide denotations for coproduct types
+and related functions:
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Type}
+	\qquad \Gamma \vdash \beta : \text{Type}
+	\qquad \Gamma,U,C \vdash \Delta(\alpha) = A
+	\qquad \Gamma,U,C \vdash \Delta(\beta) = B}
+	{\Gamma,U,C \vdash \Delta(\alpha \oplus \beta) =
+	(\{0\} \times A) \cup (\{1\} \times B)}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\iota_1) =
+	\{(x,(0,x))\ |\ \exists A \in \Delta(\text{Type}),\ x \in A\}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\iota_2) =
+	\{(x,(1,x))\ |\ \exists A \in \Delta(\text{Type}),\ x \in A\}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \bar{f} : \alpha \to \gamma
+	\qquad \Gamma \vdash \bar{G} : \beta \to \gamma
+	\qquad \Gamma,U,C \vdash \Delta(\bar{f}) = F
+	\qquad \Gamma,U,C \vdash \Delta(\bar{g}) = G}
+	{\Gamma,U,C \vdash \Delta(\bar{f} \oplus \bar{g}) =
+	\{((0,x),y)\ |\ (x,y) \in F\}
+	\cup \{((1,x),y)\ |\ (x,y) \in G\}}.
+\end{equation}
+For a function $C : \text{Name} \to U$, the notation
+$C[v \mapsto x]$, where $v \in \text{Name}$ and $x \in U$,
+denotes the partial function:
+\begin{equation}
+	C[v \mapsto x](u) = \begin{cases}
+		x & \text{if}\ u = v, \\
+		C(u) & \text{otherwise}.
+	\end{cases}
+\end{equation}
+The following rules provide denotations for lambda abstractions
+and function applications:
+\begin{equation}
+	\frac{\Gamma, v : \alpha \vdash \bar{y} : \beta
+	\qquad \Gamma,U,C \vdash \Delta(\alpha) = A
+	\qquad \Gamma,U,C \vdash \Delta(\beta) = B}
+	{\Gamma,U,C \vdash \Delta(\lambda v : \alpha \mapsto \bar{y})
+	= \{(x, y)\ |\ x \in A \wedge y \in B
+	\wedge (\Gamma,U,C[v \mapsto x])
+	\vdash \Delta(\bar{y}) = y)\}}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \bar{f} : \alpha \to \beta
+		\qquad \Gamma \vdash \bar{x} : \alpha
+		\qquad \Gamma \vdash \Delta(\bar{f}) = F
+		\qquad \Gamma \vdash \Delta(\bar{x}) = x
+		\qquad (x,y) \in F
+	}{\Gamma,U,C \vdash \Delta(\bar{f}(\bar{x})) = y}.
+\end{equation}
+The following rules define denotations of names
+introduced by equational definitions and data declarations:
+\begin{equation}
+	\frac{\Gamma,U,C \vdash \Delta(\alpha) = A
+	\qquad (\text{data}\ x \cong \alpha) \in \Gamma}
+	{\Gamma,U,C \vdash \Delta(x) = A}
+	\qquad
+	\frac{\Gamma,U,C \vdash \Delta(\bar{y}) = Y
+	\qquad (\text{def}\ x : \alpha := \bar{y}) \in \Gamma}
+	{\Gamma,U,C \vdash \Delta(x) = Y}.
+\end{equation}
+The following rules define denotations of to/from isomorphisms,
+which are quite trivial, because these isomorphisms are always
+the identity function over the denotation set:
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\text{to}(x)) =
+	\{(x,x)\ |\ \exists A \in \Delta(\text{Type}), x \in A\}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C \vdash
+	\qquad (\text{data}\ x \cong \alpha) \in \Gamma}
+	{\Gamma,U,C \vdash \Delta(\text{from}(x)) =
+	\{(x,x)\ |\ x \in A\}}.
+\end{equation}
+The following rule defines denotations of let expressions:
+\begin{equation}
+	\frac{
+		\Gamma,U,C \vdash \Delta(\bar{y}) = Y
+		\qquad
+		\Gamma,U,C[x \mapsto Y] \vdash \Delta(\bar{z}) = Z
+	}{\Gamma,U,C \vdash \Delta(\text{let}\ x : \alpha := \bar{y}; \bar{z})
+	= Z}.
+\end{equation}
+The following rules define denotations of the Maybe functor
+and related functions:
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{
+		\begin{array}{rclcl}
+			\Gamma,U,C \vdash \Delta(\text{Maybe})
+			&=
+			& \{(A, \{0\} \cup (\{1\} \times A))
+			& |
+			& A \in \Delta(\text{Type})
+			\}
+			\\ &\cup
+			&\{(f, \{(0,0)\} \cup (\{1\} \times f))
+			& |
+			& \exists \alpha, \beta, (\Gamma \vdash \alpha : \text{Type})
+			\\ &&& \wedge
+			& (\Gamma \vdash \beta : \text{Type})
+			\\ &&& \wedge
+			& (\Gamma,U,C \vdash \Delta(\alpha \to \beta) = D)
+			\\ &&& \wedge
+			& f \in D\}
+		\end{array}
+	}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\text{just}) = \{(x,(1,x))\ |\ \exists A \in \Delta(\text{Type}), x \in A\}}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\text{nothing}) = 0}.
+\end{equation}
+
+For a function $f : A \times B \to C$, let $\text{curry}(f) : A \to B \to C$ be a function
+defined as follows:
+\begin{equation}
+	\text{curry}(f) = \{(a, \{(b, f(a, b))\ |\ b \in B\})\ |\ a \in A\}.
+\end{equation}
+Similarly, for a function $f : A \times B \times C \to D$, let
+$\text{curry}^2(f) : A \to B \to C \to D$ be a function defined as follows:
+\begin{equation}
+	\text{curry}^2(f) = \text{curry}(\text{curry}(f)).
+\end{equation}
+
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{
+		\begin{array}{rcl}
+			\Gamma,U,C \vdash \Delta(\text{maybe}) =
+			\text{curry}^2(\{(f,d,x,y)\
+			&|\
+			&\exists \alpha,\ \Gamma \vdash \alpha : \text{FiniteDim}
+			\\ &\wedge
+			& \exists \beta,\ \Gamma \vdash \beta : \text{FiniteDim}
+			\\ &\wedge
+			& f \in \Delta(\alpha \to \beta)
+			\\ &\wedge
+			& d \in \Delta(\beta)
+			\\ &\wedge
+			& x \in \Delta(\text{Maybe}(\alpha))
+			\\ & \wedge
+			& ((x = \text{nothing} \wedge y = d)
+				\vee (x,y) \in f)\})
+		\end{array}
+	}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\text{exists}) = \{((1,x), x)\ |\ \exists
+	A \in \Delta(\text{Type}), x \in A\}}
+\end{equation}
+The following rules define denotations of the List functor
+and related functions:
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{
+		\begin{array}{rclcl}
+			\Gamma,U,C \vdash \Delta(\text{List})
+			&=
+			& \{(A, \mathbb{N} \times A^{\mathbb{N}})
+			& |
+			& A \in \Delta(\text{Type})\}
+			\\ & \cup
+			& \{(f, (\text{id}_{\mathbb{N}}, g \mapsto f \circ g))
+			& |
+			& \exists \alpha, \beta, f \in \Delta(\alpha \to \beta)
+			\\ &&& \wedge
+			& \Gamma \vdash \alpha : \text{Quantifiable}
+			\\ &&& \wedge
+			& \Gamma \vdash \beta : \text{Quantifiable}\}
+		\end{array}
+	}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\text{length})
+	= \{((\ell,f),\ell)\ |\ \exists \alpha,
+	(\Gamma \vdash \alpha : \text{Quantifiable})
+	\wedge (\ell,f) \in \Delta(\text{List}(\alpha))\}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{
+		\begin{array}{rcl}
+			\Gamma,U,C \vdash \Delta(\text{nth})
+			= \text{curry}(\{((\ell,f),i,x)
+			&|& \exists \alpha,
+			(\Gamma \vdash \alpha : \text{Quantifiable})
+			\\ &\wedge
+			& (\ell,f) \in \Delta(\text{List}(\alpha))
+			\\ &\wedge
+			& i \in \mathbb{N} \wedge (i,x) \in f \wedge i < \ell\}).
+		\end{array}
+	}
+\end{equation}
+The following rules define denotations of the Map functor
+and related functions:
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\begin{array}{l}
+		\Gamma,U,C \vdash \Delta(\text{Map}) =
+		\\ \qquad \text{curry}(\{(A, B, \mathbb{N} \times A^{\mathbb{N}} \times B^A)
+		\ |\ \exists \alpha, (\Gamma \vdash \alpha : \text{FiniteDim})
+		 \wedge \exists \beta, (\Gamma \vdash \beta : \text{Quantifiable})
+		\\ \qquad\qquad \wedge\ (\Gamma,U,C \vdash \Delta(\alpha) = A)
+		\wedge (\Gamma,U,C \vdash \Delta(\beta) = B)\})
+		\\ \qquad \cup\ \{(f, \text{id}_{\mathbb{N}}
+				\times \text{id}_{A^\mathbb{N}}
+				\times (g \mapsto f \circ g))
+		\\ \qquad\qquad |\ \exists \alpha, \Gamma \vdash \alpha : \text{FiniteDim}
+		\wedge \exists \beta, (\Gamma \vdash \beta : \text{Quantifiable})
+		\wedge \exists \gamma, (\Gamma \vdash \gamma : \text{Quantifiable})
+		\\ \qquad\qquad \wedge\ (\Gamma,U,C \vdash \Delta(\alpha) = A)
+		\wedge f \in \Delta(\beta \to \gamma)\}
+	\end{array}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\begin{array}{l}
+		\Gamma,U,C \vdash \Delta(\text{lookup}) =
+		\text{curry}(\{(i,(\ell,k,v),x)
+		\\ \qquad |\ \exists \alpha, (\Gamma \vdash \alpha : \text{FiniteDim})
+		\wedge \exists \beta, (\Gamma \vdash \beta : \text{FiniteDim})
+		\\ \qquad \wedge\ (\ell,k,v) \in \Delta(\text{Map}(\alpha, \beta))
+		\\ \qquad \wedge\ (x = \text{nothing} \vee \exists j \in \mathbb{N}, j < \ell \wedge
+		(j,i) \in k \wedge (i,x') \in v \wedge x = \text{just}(x')\}))
+	\end{array}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\begin{array}{l}
+		\Gamma,U,C \vdash \Delta(\text{keys})
+		= \{((\ell,k,v),(\ell,k))
+		\\ \qquad |\ \exists \alpha, (\Gamma \vdash \alpha : \text{FiniteDim})
+		\wedge \exists \beta, (\Gamma \vdash \beta : \text{Quantifiable})
+		\\ \qquad \wedge\ (\ell,k,v) \in \Delta(\text{Map}(\alpha, \beta))\}.
+	\end{array}}
+\end{equation}
+This semantics does not define a denotation for the sum function, because
+that function is polymorphic, and it will not necessarily
+work the same on all values regardless of the type that those values
+are interpreted as belonging to. Therefore, this semantics merely defines the
+denotations of applications of the sum function:
+\begin{equation}
+	\frac{
+		\Gamma \vdash \bar{x} : \text{List}(\alpha)
+		\qquad \Gamma \vdash \alpha : \text{Num}
+		\qquad \Gamma,U,C \vdash \Delta(\bar{x}) = (\ell, f)
+	}{
+		\Gamma,U,C \vdash \Delta(\text{sum}(\bar{x}))
+		= \sum_{i=0}^{\ell-1} f(i)
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \bar{x} : \text{List(Maybe(}\alpha))
+		\qquad \Gamma \vdash \alpha : \text{Num}
+		\qquad \Gamma,U,C \vdash \Delta(\bar{x}) = (\ell,f)
+	}{
+		\Gamma,U,C \vdash \Delta(\text{sum}(\bar{x}))
+		= \sum\limits_{i=0}^{\ell-1}
+		\begin{cases}
+			0 & \text{if}\ f(i) = 0, \\
+			\pi_2(f(i)) & \text{otherwise}
+		\end{cases}
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \bar{x} : \text{List(List}(\alpha))
+		\qquad \Gamma \vdash \alpha : \text{Num}
+		\qquad \Gamma,U,C \vdash \Delta(\bar{x}) = (\ell, f)
+	}{
+		\Gamma,U,C \vdash \Delta(\text{sum}(\bar{x}))
+		= \sum_{i=0}^{\ell-1} \sum_{j=0}^{\pi_1(f(i))-1} \pi_2(f(i))(j)
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \bar{x} : \text{List(List(Maybe(}\alpha)))
+		\qquad \Gamma \vdash \alpha : \text{Num}
+		\qquad \Gamma,U,C \vdash \Delta(\bar{x}) = (\ell,f)
+	}{
+		\Gamma,U,C \vdash \Delta(\text{sum}(\bar{x}))
+		= \sum\limits_{i=0}^{\ell-1} \sum\limits_{j=0}^{\pi_1(f(i))-1}
+		\begin{cases}
+			0 & \text{if}\ \pi_2(f(i))(j) = 0, \\
+			\pi_2(\pi_2(f(i))(j)) & \text{otherwise}
+		\end{cases}
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \bar{x} : \text{Map}(\alpha, \beta)
+		\qquad \Gamma,U,C \vdash \Delta(\bar{x}) = (\ell, k, v)
+	}{
+		\Gamma,U,C \vdash \Delta(\text{sum}(\bar{x}))
+		= \sum_{i=0}^{\ell-1} v(k(i))
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \beta : \text{Num}
+		\qquad \Gamma \vdash \bar{x} : \text{Map}(\alpha, \text{List}(\beta))
+		\qquad \Gamma,U,C\ \text{dctx}
+	}{
+		\Gamma,U,C \vdash \Delta((\text{sum} \circ \text{Map(length)})(\bar{x}))
+		= \Delta(\text{sum(Map(length)(}\bar{x})))
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \beta : \text{Num}
+		\qquad \Gamma \vdash \bar{x} : \text{List(Map}(\alpha, \beta))
+		\qquad \Gamma \vdash \bar{k} : \alpha
+		\qquad \Gamma,U,C\ \text{dctx}
+	}{
+		\Gamma,U,C \vdash \Delta((\text{sum} \circ \text{List(lookup(}\bar{k})))(\bar{x}))
+		= \Delta(\text{sum(List(lookup(}\bar{k}))(\bar{x})))
+	}.
+\end{equation}
+The following rules define denotations of propositions, which are truth values
+(1 = true, 0 = false):
+\begin{equation}
+	\frac{
+		\Gamma \vdash \alpha : \text{FiniteDim}
+		\qquad \Gamma \vdash \bar{x} : \alpha
+		\qquad \Gamma \vdash \bar{y} : \alpha
+		\qquad \Gamma,U,C\ \text{dctx}
+	}{
+		\Gamma,U,C \vdash \Delta(\bar{x} = \bar{y})
+		= \begin{cases}
+			1 & \text{if}\ \Delta(\bar{x}) = \Delta(\bar{y}), \\
+			0 & \text{otherwise}
+		\end{cases}
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \alpha : \text{Num}
+		\qquad \Gamma \vdash \bar{x} : \alpha
+		\qquad \Gamma \vdash \bar{y} : \alpha
+		\qquad \Gamma,U,C\ \text{dctx}
+	}{
+		\Gamma,U,C \vdash \Delta(\bar{x} \leq \bar{y})
+		= \begin{cases}
+			1 & \text{if}\ \Delta(\bar{x}) \leq \Delta(\bar{y}), \\
+			0 & \text{otherwise}
+		\end{cases}
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \phi : \text{Prop}
+		\qquad \Gamma \vdash \psi : \text{Prop}
+		\qquad \Gamma,U,C\ \text{dctx}
+	}{
+		\Gamma,U,C \vdash \Delta(\phi \wedge \psi) = \Delta(\phi) \cdot \Delta(\psi)
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \phi : \text{Prop}
+		\qquad \Gamma \vdash \psi : \text{Prop}
+		\qquad \Gamma,U,C\ \text{dctx}
+	}{
+		\Gamma,U,C \vdash \Delta(\phi \vee \psi)
+		= \Delta(\phi) + \Delta(\psi) - (\Delta(\phi) \cdot \Delta(\psi))
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \phi : \text{Prop}
+		\qquad \Gamma,U,C\ \text{dctx}
+	}{
+		\Gamma,U,C \vdash \Delta(\neg\phi) = 1 - \Delta(\phi)
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \phi : \text{Prop}
+		\qquad \Gamma \vdash \psi : \text{Prop}
+		\qquad \Gamma,U,C\ \text{dctx}
+	}{
+		\Gamma,U,C \vdash \Delta(\phi \to \psi) = \Delta(\neg\phi \vee \psi)
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma, x : \alpha \vdash \phi : \text{Prop}
+		\qquad \Gamma,U,C \vdash \Delta(\alpha) = A
+		\qquad v \in \{0,1\}^A
+		\qquad \forall i \in A, (\Gamma,U,C[x \mapsto i] \vdash \Delta(\phi) = v(i))
+	}{
+		\Gamma,U,C \vdash \Delta(\forall x : \alpha, \phi) =
+		\begin{cases}
+			1 & \text{if}\ v = A \times \{1\} \\
+			0 & \text{otherwise}
+		\end{cases}
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma, x : \alpha \vdash \phi : \text{Prop}
+		\qquad \Gamma,U,C \vdash \Delta(\alpha) = A
+		\qquad v \in \{0,1\}^A
+		\qquad \forall i \in A, (\Gamma,U,C[x \mapsto i] \vdash \Delta(\phi) = v(i))
+	}{
+		\Gamma,U,C \vdash \Delta(\exists x : \alpha, \phi) =
+		\begin{cases}
+			0 & \text{if}\ v = A \times \{0\} \\
+			1 & \text{otherwise}.
+		\end{cases}
+	}
+\end{equation}
+
+
+
+\section{Grammar of $\Sigma^1_1$ formulas}
+
+The first step in defining $\Sigma^1_1$ formulas is to define a language of
+terms. A term is a syntactic object which denotes a number, given a context which
+bestows values to the variables it contains. Terms are defined by the following
+recursive definition.
+
+\begin{enumerate}
+	\item For each positive integer $i$, $x_i$ is a term. $x_i$ is called a first-order variable.
+	\item For each positive integer $i$ and all sequences of terms $\tau_1, ..., \tau_n$, $f^n_i(\tau_1, ..., \tau_n)$ is a term.
+		$f^n_i(\tau_1, ..., \tau_n)$ is called a function application. Notice that in this
+		definition, second order variables contain their arity as part of their name.
+	\item For all terms $\tau, \mu$:
+		\begin{enumerate}
+			\item $(\tau + \mu)$ is a term.
+			\item $(\tau \cdot \mu)$ is a term.
+			\item $\text{ind}_<(\tau, \mu)$ is a term. $\text{ind}_<$ is called the
+				comparison indicator function; it returns 1 when $\tau$ is less
+				than $\mu$ and 0 otherwise.
+		\end{enumerate}
+	\item $0$ is a term. 1 is a term. $-1$ is a term. These are called constant symbols.
+\end{enumerate}
+
+A ``polynomial term,'' by definition, is a term which is constructed using only rules 1, 3a, 3b, and 4
+above: in other words, it is built out of variables and constants using only addition and multiplication.
+
+First-order formulas (over the language of rings) are defined by the following recursive definition.
+
+\begin{enumerate}
+	\item For all terms $\tau, \mu$,
+		\begin{equation}
+			(\tau = \mu)
+		\end{equation}
+		is a first-order formula. $\tau = \mu$ is called an atomic formula or an equation.
+	\item For all first-order formulas $\phi$,
+		\begin{equation}
+			\neg\phi
+		\end{equation}
+		is a first-order formula. $\neg\phi$ is called a negation.
+	\item For all first-order formulas $\phi, \psi$, 
+		\begin{equation}
+			(\phi \wedge \psi)
+		\end{equation}
+		is a first-order formula. $(\phi \wedge \psi)$ is called a conjunction.
+	\item For all first-order formulas $\phi, \psi$,
+		\begin{equation}
+			(\phi \vee \psi)
+		\end{equation}
+		is a first-order formula. $(\phi \vee \psi)$ is called a disjunction.
+	\item For all first-order formulas $\phi, \psi$,
+		\begin{equation}
+			(\phi \to \psi)
+		\end{equation}
+		is a first-order formula. $(\phi \to \psi)$ is called an implication.
+	\item For all first-order formulas $\phi$ and polynomial terms $\beta$,
+		\begin{equation}
+			\forall < \beta.\ \phi
+		\end{equation}
+		is a first-order formula. $\forall$ is called the universal quantifier. $\beta$ is called the quantifier bound.
+	\item For all first-order formulas $\phi$ and polynomial terms $\beta$,
+		\begin{equation}
+			\exists < \beta.\ \phi
+		\end{equation}
+		is a first-order formula. $\exists$ is called the first-order existential quantifier. $\beta$ is called the quantifier bound.
+\end{enumerate}
+
+$\Sigma^1_1$ formulas (over the language of rings) are defined by the following recursive definition.
+
+\begin{enumerate}
+	\item Every first-order formula is a $\Sigma^1_1$ formula.
+	\item For all $\Sigma^1_1$ formulas $\phi$ and polynomial terms $\gamma$ and non-empty sequences of polynomial terms $\beta_1, ..., \beta_n$,
+		\begin{equation}
+			\exists_f <\gamma (<\beta_1, ..., <\beta_n).\ \phi
+		\end{equation}
+		is a $\Sigma^1_1$ formula. $\exists_f$ is called the second-order existential quantifier. $n$ is called the arity of the function. $\beta_1, ..., \beta_n$ are called the bounds of the dimensions of the domain of the function. $\gamma$ is called the bound of the codomain of the function.
+\end{enumerate}
+
+
+
+\section{Denotational semantics of $\Sigma^1_1$ formulas}
+
+Relative to a suitable model, it is possible to define whether any given
+$\Sigma^1_1$ formula is true or false.
+For this context, a model, by definition, is a tuple
+
+\begin{equation}
+	M = (R, \cdot, +, 0, 1, -1, <, F, S),
+\end{equation}
+
+where:
+
+\begin{enumerate}
+	\item $(R, \cdot, +, 0, 1, -1)$ is a ring:
+		\begin{enumerate}
+			\item $R$ is a set.
+			\item $\cdot : R \times R \to R$ is a binary operation.
+			\item $+ : R \times R \to R$ is a binary operation.
+			\item $0, 1, -1 \in R$.
+			\item $+$ is associative and commutative, meaning, for all $x, y, z \in R$,
+				\begin{equation}
+					(x+y)+z = x+(y+z),
+				\end{equation}
+				\begin{equation}
+					x+y=y+x.
+				\end{equation}
+			\item Each element of $R$ has an additive inverse, meaning, for each $x \in R$ there is $y \in R$ such that $x + y = 0$.
+			\item $\cdot$ is associative, meaning, for all $x, y, z \in R$,
+				\begin{equation}
+					(x\cdot y)\cdot z = x \cdot (y \cdot z)
+				\end{equation}
+			\item $0$ is the additive identity, meaning, for each $x \in R$,
+				\begin{equation}
+					x + 0 = x = 0 + x.
+				\end{equation}
+			\item $1$ is the multiplicative identity, meaning, for each $x \in R$,
+				\begin{equation}
+					x \cdot 1 = x = 1 \cdot x.
+				\end{equation}
+			\item $-1$ is the additive inverse of 1, meaning $1 + (-1) = 0$.
+			\item The distributive law holds, meaning, for all $x, y, z \in R$,
+				\begin{equation}
+					x \cdot (y+z) = (x \cdot y) + (x \cdot z),
+				\end{equation}
+				\begin{equation}
+					(y+z) \cdot x = (y \cdot x) + (z \cdot x).
+				\end{equation}
+		\end{enumerate}
+	\item $<\ \subseteq R \times R$ is a strict total ordering relation on $R$
+		with a least element:
+		\begin{enumerate}
+			\item $<$ is antisymmetric, meaning there is no $x \in R$ such that $x < x$.
+			\item $<$ is transitive, meaning for all $x, y, z \in R$, if $x < y$ and $y < z$ then $x < z$.
+			\item $<$ is connected, meaning for all $x, y \in R$, if $x \neq y$ then either $x < y$ or $y < x$.
+			\item $<$ has a least element, meaning there exists a $z \in R$ such that for all $x \in R$, if $x \neq z$ then $z < x$. (Such a $z$ is necessarily unique.)
+		\end{enumerate}
+	\item $F : \mathbb{Z}^+ \to R$ is a partial function mapping de Bruijn indices
+		naming first-order variables to their corresponding values (if any).
+	\item $S : \mathbb{Z}^+ \to \sum_{i \in \mathbb{Z}^+} (R^i \to R)$ is a partial function
+		mapping de Bruijn indices naming second-order variables to their
+		corresponding values (if any). The values are partial functions of
+		variable arity from $R$ to $R$. Here $\sum_{i \in \mathbb{Z}^+}$ denotes
+		the indexed coproduct or disjoint union operation with $i$ ranging
+		over the positive integers.
+\end{enumerate}
+
+Let $M = (R, \cdot, +, 0, 1, -1, <, F, S)$ be a model. Let $y \in R$.
+Define the model
+
+\begin{equation}
+M[x_1 \mapsto y] = (R, \cdot, +, 0, 1, <, F', S)
+\end{equation}
+
+by letting
+
+\begin{equation}
+	\begin{array}{rcl}
+		F'(1) &=& y,\\
+		F'(n+1) &=& F(n).
+	\end{array}
+\end{equation}
+
+Let $n$ be a positive integer. Let $g : R^n \to R$ be a partial function.
+Define the model
+
+\begin{equation}
+	M[f_1 \mapsto g] = (R, \cdot, +, 0, 1, F, S')
+\end{equation}
+
+by letting
+
+\begin{equation}
+	\begin{array}{rcl}
+		S'(1) &=& g, \\
+		S'(n+1) &=& S(n).
+	\end{array}
+\end{equation}
+
+The definitions just given of $M[x_1 \mapsto y]$ and $M[f_1 \mapsto g]$
+explain how to update a model with a new variable mapping at
+the least de Bruijn index, pushing up all the existing de
+Bruijn index mappings. These operations are useful for dealing
+with quantification in the denotational semantics which follows below.
+
+Also helpful for defining the denotational semantics
+will be an extension of the $[i]$ notation previously
+defined. Previously, $[i]$ was defined as $\{1, ..., i\}$
+for a positive integer $i$. Generalizing this to a ring $R$ for an arbitrary model
+$M$, let $[i]$ be defined as $\{x \in R\ |\ z \leq x \leq i\}$, where
+$z$ is the least element of $R$ under $<$ and $\leq$ is the
+non-strict version of $<$.
+
+Given a model,
+
+\begin{equation}
+	M := (R, \cdot, +, 0, 1, -1, <, F, S),
+\end{equation}
+
+it is possible to define the denotations of terms and formulas, such as
+by the following recursive definition. The denotation of a term is an
+element of $R$, whereas the denotation of a formula is a truth value.
+The set of truth values is the set $\{0, 1\}$, where 0 represents false
+and 1 represents true. Due to the partiality of $F$, $S$, and the
+functions in the codomain of $S$, not every term or formula has a
+denotation in every model. The following recursive clauses define the
+denotation $\delta_M(\tau)$ for each term $\tau$ which has a denotation
+in $M$ and the denotation $\delta_M(\phi)$ for each term $\phi$ which
+has a denotation in $M$.
+
+\begin{enumerate}
+	\item For all positive integers $i$,
+		\begin{equation}
+			\delta_M(x_i) := F(i),
+		\end{equation}
+		if $F(i)$ is defined.
+	\item For all positive integers $i$ and non-empty sequences of terms $\tau_1, ..., \tau_n$,
+		\begin{equation}
+			\delta_M(f_i(\tau_1, ..., \tau_n)) := S(i)(\delta_M(\tau_1), ..., \delta_M(\tau_n)),
+		\end{equation}
+		if $S(i)$ is defined, and $\delta_M(\tau_i)$ is defined for each $i$, and 
+		\begin{equation}
+			S(i)(\delta_M(\tau_1), ..., \delta_M(\tau_n))
+		\end{equation}
+		is defined.
+	\item For all terms $\tau, \mu$,
+		\begin{equation}
+			\delta_M(\tau + \mu) := \delta_M(\tau) + \delta_M(\mu),
+		\end{equation}
+		if $\delta_M(\tau)$ and $\delta_M(\mu)$ are defined.
+	\item For all terms $\tau, \mu$,
+		\begin{equation}
+			\delta_M(\tau \cdot \mu) := \delta_M(\tau) \cdot \delta_M(\mu),
+		\end{equation}
+		if $\delta_M(\tau)$ and $\delta_M(\mu)$ are defined.
+	\item For all terms $\tau, \mu$,
+		\begin{equation}
+			\delta_M(\text{ind}_<(\tau, \mu)) := \begin{cases}
+				1 & \delta_M(\tau) < \delta_M(\mu), \\
+				0 & \text{otherwise}.
+			\end{cases}
+		\end{equation}
+	\item $\delta_M(0) := 0$.
+	\item $\delta_M(1) := 1$.
+	\item $\delta_M(-1) := -1$.
+	\item For all terms $\tau, \mu$,
+		\begin{equation}
+			\delta_M(\tau = \mu) := 1
+		\end{equation}
+		if $\delta_M(\tau)$ and $\delta_M(\mu)$ are defined and
+		\begin{equation}
+			\delta_M(\tau) = \delta_M(\mu).
+		\end{equation}
+	\item For all terms $\tau, \mu$,
+		\begin{equation}
+			\delta_M(\tau = \mu) := 0
+		\end{equation}
+		if $\delta_M(\tau)$ and $\delta_M(\mu)$ are defined and 
+		\begin{equation}
+			\delta_M(\tau) \neq \delta_M(\mu).
+		\end{equation}
+	\item For all first-order formulas $\phi$,
+		\begin{equation}
+			\delta_M(\neg\phi) := 1 - \delta_M(\phi),
+		\end{equation}
+		if $\delta_M(\phi)$ is defined.
+	\item For all first-order formulas $\phi, \psi$,
+		\begin{equation}
+			\delta_M(\phi \wedge \psi) := \min\{\delta_M(\phi), \delta_M(\psi)\},
+		\end{equation}
+		if $\delta_M(\phi)$ and $\delta_M(\psi)$ are defined.
+	\item For all first-order formulas $\phi, \psi$,
+		\begin{equation}
+			\delta_M(\phi \vee \psi) := \max\{\delta_M(\phi), \delta_M(\psi)\},
+		\end{equation}
+		if $\delta_M(\phi)$ and $\delta_M(\psi)$ are defined.
+	\item For all polynomial terms $\beta$ and first-order formulas $\phi$,
+		\begin{equation}
+			\delta_M(\forall < \beta.\ \phi) := \min(\{\delta_{M[x_1 \mapsto i]}(\phi) | i \in [\delta_M(\beta)]\} \cup \{1\}),
+		\end{equation}
+		if $\delta_{M[x_1 \mapsto i]}(\phi)$ is defined for each $i$.
+	\item For all polynomial terms $\beta$ and first-order formulas $\phi$,
+		\begin{equation}
+			\delta_M(\exists < \beta.\ \phi) := \max(\{\delta_{M[x_1 \mapsto i]}(\phi) | i \in [\delta_M(\beta)]\} \cup \{0\}), 
+		\end{equation}
+		if $\delta_{M[x_1 \mapsto i]}(\phi)$ is defined for each $i$.
+	\item For all polynomial terms $\gamma$ and non-empty sequences of polynomial terms $\beta_1, ..., \beta_n$ and $\Sigma^1_1$ formulas $\phi$,
+		\begin{equation}
+			\delta_M(\exists_f < \gamma(<\beta_1, ..., <\beta_n).\ \phi)
+			:= \max_{g \in [\delta_M(\gamma)]^{\prod_{j \in [n]} [\delta_M(\beta_j)]}} \delta_{M[f_1 \mapsto g]}(\phi),
+		\end{equation}
+		if $\delta_{M[f_1 \mapsto g]}(\phi)$ is defined for each $g$.
+
+		Note: this truth condition cannot assign a truth value to the formula when $\delta_M(\gamma) < 1$.
+		In such a case, the only value that $g$ can take is the empty set, and
+		if the formula $\phi$ references $f_1$, then $\delta_{M[f_1 \mapsto \emptyset]}(\phi)$
+		is undefined. Since we do not care about cases where $\phi$ does not reference
+		all quantified variables, it is not important for our purposes that this
+		truth condition fails to apply when $\delta_M(\gamma) < 1$. The same comments
+		apply when $\delta_M(\beta_i) < 1$ for some $i$.
+\end{enumerate}
+
 
 
 \clearpage
