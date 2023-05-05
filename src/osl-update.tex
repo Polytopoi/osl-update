@@ -1570,6 +1570,7 @@ recursive definition.
 			\item $\text{ind}_<(\tau, \mu)$ is a term. $\text{ind}_<$ is called the
 				comparison indicator function; it returns 1 when $\tau$ is less
 				than $\mu$ and 0 otherwise.
+			\item $\text{max}(\tau, \mu)$ is a term, denoting the greatest of the denotations of $\tau$ and $\mu$.
 		\end{enumerate}
 	\item $0$ is a term. 1 is a term. $-1$ is a term. These are called constant symbols.
 \end{enumerate}
@@ -1577,6 +1578,7 @@ recursive definition.
 First-order formulas (over the language of rings) are defined by the following recursive definition.
 
 \begin{enumerate}
+	\item $\bot$ is a formula (always denoting falsehood), and $\top$ is a formula (always denoting truth).
 	\item For all terms $\tau, \mu$,
 		\begin{equation}
 			(\tau = \mu)
@@ -1602,6 +1604,11 @@ First-order formulas (over the language of rings) are defined by the following r
 			(\phi \to \psi)
 		\end{equation}
 		is a first-order formula. $(\phi \to \psi)$ is called an implication.
+	\item For all first-order formulas $\phi, \psi$,
+		\begin{equation}
+			(\phi \leftrightarrow \psi)
+		\end{equation}
+		is a first-order formula, called a biconditional.
 	\item For all first-order formulas $\phi$ and terms $\beta$,
 		\begin{equation}
 			\forall < \beta.\ \phi
@@ -1614,23 +1621,33 @@ First-order formulas (over the language of rings) are defined by the following r
 		is a first-order formula. $\exists$ is called the first-order existential quantifier. $\beta$ is called the quantifier bound.
 \end{enumerate}
 
-$\Sigma^1_1$ formulas (over the language of rings) are defined by the following recursive definition.
+$\Sigma^1_1$ formulas without instance quantifiers are defined by the following recursive definition.
 
 \begin{enumerate}
-	\item Every first-order formula is a $\Sigma^1_1$ formula.
-	\item For all $\Sigma^1_1$ formulas $\phi$ and terms $\gamma$ and non-empty sequences of terms $\beta_1, ..., \beta_n$,
+	\item Every first-order formula is a $\Sigma^1_1$ formula without instance quantifiers.
+	\item For all $\Sigma^1_1$ formulas without instance quantifiers $\phi$ and terms $\gamma$ and non-empty sequences of terms $\beta_1, ..., \beta_n$,
 		\begin{equation}
 			\exists_f <\gamma (<\beta_1, ..., <\beta_n).\ \phi
 		\end{equation}
-		is a $\Sigma^1_1$ formula. $\exists_f$ is called the second-order existential quantifier. $n$ is called the arity of the function. $\beta_1, ..., \beta_n$ are called the bounds of the dimensions of the domain of the function. $\gamma$ is called the bound of the codomain of the function.
+		is a $\Sigma^1_1$ formula without instance quantifiers. $\exists_f$ is called the second-order existential quantifier. $n$ is called the arity of the function. $\beta_1, ..., \beta_n$ are called the bounds of the dimensions of the domain of the function. $\gamma$ is called the bound of the codomain of the function.
 \end{enumerate}
 
+$\Sigma^1_1$ formulas are defined by the following recursive definition.
+
+\begin{enumerate}
+	\item Every $\Sigma^1_1$ formula without instance quantifiers is a $\Sigma^1_1$ formula.
+	\item For all $\Sigma^1_1$ formula $\phi$ and terms $\gamma$ and non-empty sequences of term $\beta_1, ..., \beta_n$,
+		\begin{equation}
+			\lambda <\gamma (<\beta_1, ..., <\beta_n).\ \phi
+		\end{equation}
+		is a $\Sigma^1_1$ formula. $\lambda$ is called the instance quantifier. $n$, $\gamma$, and $\beta_1, ..., \beta_n$ are called as in the preceding clause.
+\end{enumerate}
 
 
 \section{Denotational semantics of $\Sigma^1_1$ formulas}
 
 Relative to a suitable model, it is possible to define whether any given
-$\Sigma^1_1$ formula is true or false.
+$\Sigma^1_1$ formula without instance quantifiers is true or false.
 For this context, a model, by definition, is a tuple
 
 \begin{equation}
@@ -1784,7 +1801,14 @@ has a denotation in $M$.
 	\item For all terms $\tau, \mu$,
 		\begin{equation}
 			\delta_M(\text{ind}_<(\tau, \mu)) := \begin{cases}
-				1 & \delta_M(\tau) < \delta_M(\mu), \\
+				1 & \text{if}\ \delta_M(\tau) < \delta_M(\mu), \\
+				0 & \text{otherwise}.
+			\end{cases}
+		\end{equation}
+	\item For all $\tau, \mu$,
+		\begin{equation}
+			\delta_M(\text{max}(\tau, \mu)) := \begin{cases}
+				\delta_M(\tau) & \text{if}\ \delta_M(\tau) < \delta_M(\mu), \\
 				0 & \text{otherwise}.
 			\end{cases}
 		\end{equation}
@@ -1832,7 +1856,7 @@ has a denotation in $M$.
 			\delta_M(\exists < \beta.\ \phi) := \max(\{\delta_{M[x_1 \mapsto i]}(\phi) | i \in [\delta_M(\beta)]\} \cup \{0\}), 
 		\end{equation}
 		if $\delta_{M[x_1 \mapsto i]}(\phi)$ is defined for each $i$.
-	\item For all terms $\gamma$ and non-empty sequences of terms $\beta_1, ..., \beta_n$ and $\Sigma^1_1$ formulas $\phi$,
+	\item For all terms $\gamma$ and non-empty sequences of terms $\beta_1, ..., \beta_n$ and $\Sigma^1_1$ formulas without instance quantifiers $\phi$,
 		\begin{equation}
 			\delta_M(\exists_f < \gamma(<\beta_1, ..., <\beta_n).\ \phi)
 			:= \max_{g \in [\delta_M(\gamma)]^{\prod_{j \in [n]} [\delta_M(\beta_j)]}} \delta_{M[f_1 \mapsto g]}(\phi),
@@ -1848,6 +1872,7 @@ has a denotation in $M$.
 		apply when $\delta_M(\beta_i) < 1$ for some $i$.
 \end{enumerate}
 
+Extending the denotational semantics to $\Sigma^1_1$ formulas in general requires allowing a denotation of a formula to possibly be a function. TODO
 
 
 \clearpage
