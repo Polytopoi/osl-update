@@ -1859,9 +1859,9 @@ has a denotation in $M$.
 	\item For all terms $\gamma$ and non-empty sequences of terms $\beta_1, ..., \beta_n$ and $\Sigma^1_1$ formulas without instance quantifiers $\phi$,
 		\begin{equation}
 			\delta_M(\exists_f < \gamma(<\beta_1, ..., <\beta_n).\ \phi)
-			:= \max_{g \in [\delta_M(\gamma)]^{\prod_{j \in [n]} [\delta_M(\beta_j)]}} \delta_{M[f_1 \mapsto g]}(\phi),
+			:= \max_{g \in [\delta_{M[x_{n-i} \mapsto v_i]_{i=0}^{n-1}}(\gamma)]^{\prod_{j \in [n]} v_j \in [\delta_{M[x_{j-1-i}]_{i=0}^{j-1}}(\beta_j)]}} \delta_{M[f_1 \mapsto g]}(\phi),
 		\end{equation}
-		if $\delta_{M[f_1 \mapsto g]}(\phi)$ is defined for each $g$.
+		if $\delta_{M_n[f_1 \mapsto g]}(\phi)$ is defined for each $g$. 
 
 		Note: this truth condition cannot assign a truth value to the formula when $\delta_M(\gamma) < 1$.
 		In such a case, the only value that $g$ can take is the empty set, and
@@ -1876,7 +1876,7 @@ Extending the denotational semantics to $\Sigma^1_1$ formulas in general require
 For all terms $\gamma$ and non-empty sequences of terms $\beta_1, ..., \beta_n$ and $\Sigma^1_1$ formulas $\phi$,
 \begin{equation}
 	\delta_M(\lambda <\gamma(<\beta_1, ..., <\beta_n).\ \phi)
-	:= \prod_{g \in [\delta_M(\gamma)]^{\prod_{j \in [n]} [\delta_M(\beta_j)]}} \delta_{M[f_1 \mapsto g]}(\phi),
+	:= \max_{g \in [\delta_{M[x_{n-i} \mapsto v_i]_{i=0}^{n-1}}(\gamma)]^{\prod_{j \in [n]} v_j \in [\delta_{M[x_{j-1-i}]_{i=0}^{j-1}}(\beta_j)]}} \delta_{M[f_1 \mapsto g]}(\phi),
 \end{equation}
 if $\delta_{M[f_1 \mapsto g]}(\phi)$ is defined for each $g$.
 
