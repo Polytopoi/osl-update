@@ -44,20 +44,20 @@ OSL is a layer of abstraction over $\Sigma^1_1$ formulas. $\Sigma^1_1$ formulas 
 
 \begin{equation}
 	\text{max}(x, y) = \begin{cases}
-		x & \text{if} y \leq x, \\
+		x & \text{if}\ y \leq x, \\
 		y & \text{otherwise}.
 	\end{cases}
 \end{equation}
 
 Definitions of the syntax and semantics of OSL and $\Sigma^1_1$ formulas, as well as an example OSL spec, are available in the appendices to this paper.
 
-$\Sigma^1_1$ formulas allow for first-order quantifiers with arbitrary term bounds, and second-order existential quantifiers with arbitrary term bounds. See \cite{sigma11-poly-bounds} for more details and a formal definition of $\Sigma^1_1$ formulas. OSL adds rudiments of type theory, including basic functors like list and map type constructors, all of which can be straightforwardly translated into $\Sigma^1_1$ formulas.
+$\Sigma^1_1$ formulas allow for first-order quantifiers with arbitrary term bounds, and second-order existential quantifiers with arbitrary term bounds. See Appendix~\ref{sec:sigma11-grammar} for a formal definition of $\Sigma^1_1$ formulas and Appendix~\ref{sec:sigma11-denotations} for their denotational semantics. OSL adds rudiments of type theory, including basic functors like list and map type constructors, all of which can be straightforwardly translated into $\Sigma^1_1$ formulas. See Appendix~\ref{sec:osl-grammar} for a formal definition of OSL, and Appendix~\ref{sec:osl-semantics} for its denotational semantics.
 
 There is a natural connection between $\Sigma^1_1$ formulas and computation, in that sequential models of computation are typically natural to express as $\Sigma^1_1$ formulas. If a function $f$ is defined within a sequential model of computation, then $f(x, w) = y$ means in other words that there is a sequence of states $s_0, ..., s_n$ such that $s_0$ is the appropriate initial state for inputs $(x, w)$, $s_n$ is a final state where the program has halted and indicated an output of $y$, and for all $i \in [0, n)$, the step transition function of the model of computation maps $s_i$ to $s_{i+1}$. The same can be expressed as a $\Sigma^1_1$ formula as long as the step transition function is a first-order relation (i.e., it can be expressed using only first-order bounded quantifiers).
 
 There is also a natural connection between $\Sigma^1_1$ formulas and arithmetical constraint systems. The semantics of arithmetical constraint systems are typically natural to express as $\Sigma^1_1$ formulas, and it is also very feasible to express a $\Sigma^1_1$ formula as an arithmetical constraint system. The free variables in the formula (the ones not bound by quantifiers) correspond to public inputs, and the variables bound by existential quantifiers correspond to private inputs. In a useful variant on this approach, we consider $\Sigma^1_1$ formulas with no free variables, and we add a so-called instance quantifier, $\lambda$, where $\lambda x.\ \Phi(x)$ has the same semantics as $\Phi(x)$ (where $x$ is free in $\Phi(x)$). What is useful about the instance quantifier concept is that we can use it to apply a bound to an instance variable, as in $\lambda x < \alpha.\ \Phi(x)$.
 
-It is in general not computationally feasible to compute whether a $\Sigma^1_1$ formula is true or false. However, it is in general computationally feasible to check whether a first-order formula is satisfied or not on given inputs. Given satisfying values for the instance or second-order existential quantifiers in a $\Sigma^1_1$ formula, it is in general computationally feasible to check that the formula is true, since this reduces to the problem of determining that a first-order formula is true after plugging in the given values for the second-order variables.
+It is in general not computationally feasible to compute whether a $\Sigma^1_1$ formula is true or false. However, it is in general computationally feasible to check whether a first-order (bounded quantifier) formula is satisfied or not on given inputs. Given satisfying values for the instance or second-order existential quantifiers in a $\Sigma^1_1$ formula, it is in general computationally feasible to check that the formula is true, since this reduces to the problem of determining that a first-order formula is true after plugging in the given values for the second-order variables.
 
 Prior research \cite{sigma11,sigma11-poly-bounds} described methods for arithmetizing $\Sigma^1_1$ formulas which took advantage of the similarities between $\Sigma^1_1$ formulas and arithmetical constraint systems. These methods, however, were not feasible to apply in practice. They tended to result in a blow-up in the degrees and numbers of terms in the resulting polynomial constraints, to a point that it was often not feasible to compute these polynomials, let alone generate zk-SNARKs based on them.
 
@@ -81,13 +81,13 @@ Overall, the OSL compiler in its current form has the following stages, from fir
 	\item The de Bruijn indices in the $\Sigma^1_1$ formula get replaced with gensyms, which are globally unique generated names. Formulas using de Bruijn indices are relatively easy to generate, because unintended variable capture is not much of a concern; there is no need to carry state to remember which variable names have been used during the generation process. On the other hand, formulas using gensyms are relatively easy to manipulate. That is why this stage is useful.
 	\item The $\Sigma^1_1$ formula gets converted into a prenex normal form, which brings all quantifiers to the front of the formula.
 	\item The prenex normal form gets converted into a strong prenex normal form, which brings all instance quantifiers to the front of the formula, followed by all existential quantifiers, followed by all universal quantifiers.
-	\item The strong prenex normal form gets compiled into a logic circuit. A logic circuit is a structure similar to a Halo 2 circuit, with some key differences, as follows. Logic circuits do not have lookup arguments, but instead just gate constraints and equality constraints. Instead of taking the form $p = 0$, for $p$ a polynomial, gate constraints are quantifier-free logic formulas which can assert equalities and inequalities over terms involving variables, constants, addition, multiplication, the max and $\text{ind}_<$ functions, and lookups.
+	\item The strong prenex normal form gets compiled into a logic circuit. A logic circuit is a structure similar to a Halo 2 \cite{halo2-book,halo2-github} circuit, with some key differences, as follows. Logic circuits do not have lookup arguments, but instead just gate constraints and equality constraints. Instead of taking the form $p = 0$, for $p$ a polynomial, gate constraints are quantifier-free logic formulas which can assert equalities and inequalities over terms involving variables, constants, addition, multiplication, the max and $\text{ind}_<$ functions, and lookups.
 
 		Variables in this context are the same as they are in Halo 2 gate constraints: they are of the form $x_{i,j}$, where $i$ is an absolute column index and $j$ is a relative row index (an offset from the current row). Lookups in this context are of the form $c_{n+1}((t_1, c_1), ..., (t_n, c_n))$ where each $t_i$ is a term and each $c_i$ is a column ($i$ being an absolute column index). The output of a lookup term at a row $r$ is the value of column $c_{n+1}$ in the unique row $r'$ such that the vector of column values $(c_1, ..., c_n)$ at row $r'$ is equal to the vector of term values $(t_1, ..., t_n)$ at row $r$. Lookups are effectively the ``missing link'' between function calls and lookup arguments, having some characteritics of both function calls and lookup arguments, being the result of compiling function calls and being compiled into lookup arguments in Halo 2 circuits.
 
 		This notion of logic circuits is similar to the notion of logic circuits found in \cite{sigma11-poly-bounds}, with the difference being that terms related by equalities and inequalities are as just described instead of being plain polynomials as in \cite{sigma11-poly-bounds}.
 
-	\item The logic circuit gets compiled into a trace type.
+	\item The logic circuit gets compiled into a trace type. See Section~\ref{sec:trace-types} for an explanation of trace types.
 	\item The trace type gets compiled into a Halo 2 circuit.
 \end{enumerate}
 
@@ -96,6 +96,9 @@ For practical purposes, one needs not only a compiler to turn OSL code into Halo
 As of this writing, the OSL compiler and the argument compiler exist and pass tests, but they use a notion of circuits which is not exactly compatible with Halo 2. The disconnect is that the notion of circuits targeted in the OSL compiler features lookup arguments gated by polynomial expressions, such that the lookup arguments only apply at rows where the gate expression is zero, whereas Halo 2 only supports lookup arguments gated by fixed selector columns. There is nothing that prevents this gap from being bridged efficiently, and work to bridge the gap is underway as of this writing.
 
 In the previously published constructions of Halo 2 circuits from logic circuits, \cite{sigma11,sigma11-poly-bounds}, each row of the Halo 2 circuit corresponds to one row of the source logic circuit. Because the constraints in a logic circuit can imply a lot of complex constraints on one row, the complexity of the polynomials in the resulting Halo 2 circuits tends to be exceedingly high in the previously published constructions. The solution to this problem in the trace type based compilation pipeline is to let one row in the logic circuit correspond to many rows in the resulting Halo 2 circuit. In this newer construction, each row of the Halo 2 circuit verifies the evaluation of one subexpression at one row of the logic circuit. A subexpression can be a term, a (sub)formula of a gate constraint, or an assertion that a gate constraint formula is true.
+
+\section{Traces and trace types}
+\label{sec:trace-types}
 
 A ``trace'' is a value which can satisfy or fail to satisfy a trace type. A trace consists of a statement, a witness, and a map from cases to maps from subexpression ids to subexpression traces. A subexpression trace consists of the value of the subexpression (a field element), the step type id of the subexpression, and the associated advice values (a map from column indexes to field elements). Each row of a logic circuit input matrix corresponds to one case of the corresponding trace. Each information bearing row of the resulting Halo 2 circuit input matrix corresponds to one subexpression trace of one case.
 
@@ -131,13 +134,15 @@ A trace satisfies a trace type if:
 	\item All equality constraints are satisfied.
 \end{itemize}
 
+\section{Compiler stages}
+
 For full details on the compiler stages, see the code. \cite{osl-github} Here are some concise comments on how the most interesting compiler stages work.
 
 \begin{enumerate}
 	\item The compilation of OSL to $\Sigma^1_1$ formulas is largely the same as described in \cite{osl-paper}. 
 	\item Conversion to strong prenex normal form relies on the fact that instance quantifiers will already be in the front of the $\Sigma^1_1$ formula as output by the OSL to $\Sigma^1_1$ stage, and this property is preserved by the conversion to prenex normal form. Therefore it suffices to move all existential quantifiers in front of all universal quantifiers. For this, it suffices to understand how to move one existential quantifier in front of one universal quantifier in front of it. This is done by turning a first-order existential quantifier into a second-order quantifier with one argument, and a second-order existential quantifier with $n$ arguments into a second-order quantifier with $n+1$ arguments. The value of the universal quantifier becomes an argument of the existentially quantified function. This process is similar to the process of Skolemization.
 	\item The compilation of strong prenex normal forms to logic circuits is similar to the process described in \cite{sigma11-poly-bounds}, but somewhat simplified by the usage of a strong prenex normal form instead of a prenex normal form. The values of the instance and existential quantifiers are embedded as lookup tables in the logic circuit input matrix, and the set of all applicable combinations of universally quantified variable values is also embedded in the logic circuit input matrix. Each row of the logic circuit checks that the quantifier-free portion of the formula is satisfied for one case, i.e., one of the applicable combinations of universally quantified variable values. To deal with empty quantification, that is, cases where the bound on a universal variable is zero, there are dummy rows inserted at all points in the universal table where empty quantification occurs. There is a dummy row indicator column which identifies these dummy rows. Additional constraints check that the instance and existential function tables define functions (i.e., the output values are unique for a given vector of input values). Additional constraints check that the bounds are satisfied on all function tables and that the universal table is correct.
-	\item Compilation of a logic circuit to a trace type carries over all of the column types, fixed columns, equality constrainable columns, and equality constraints in the logic circuit. It must define the step types and their constraints, the subexpression links table, and the result subexpression ids. Each gate constraint in the logic circuit gives rise to one result subexpression id. The step types divide into load step types, lookup step types, constant step types, operator step types, the void step type, and the assert step type. The load step types yield the value of a variable at a case. The lookup step types yield the value of a lookup term at a case. Each constant step type yields the value of a particular constant. The operator step types implement the following operators: $+, \times / \wedge, \vee, \neg, \leftrightarrow, =, < / \text{ind}_<, \text{max}$. The operator step types include short circuiting step types for those operators which can be short circuited. Multiplication $\times$ and boolean AND $\wedge$ and they can be short circuited when an input is zero. $\vee$ can be short circuited when an input is one. The void step type always outputs zero and it takes its own output as each of its inputs. The assert step type is used on all of the result subexpression ids and it is satisfied when the input value is 1. Implementing the equality and inequality comparisons, as well as the max function, relies on byte decomposition as described in \cite{sigma11}.
+	\item Compilation of a logic circuit to a trace type carries over all of the column types, fixed columns, equality constrainable columns, and equality constraints in the logic circuit. It must define the step types and their constraints, the subexpression links table, and the result subexpression ids. Each gate constraint in the logic circuit gives rise to one result subexpression id. The step types divide into load step types, lookup step types, constant step types, operator step types, the void step type, and the assert step type. The load step types yield the value of a variable at a case. The lookup step types yield the value of a lookup term at a case. Each constant step type yields the value of a particular constant. The operator step types implement the following operators: $+, \times / \wedge, \vee, \neg, \leftrightarrow, =, < / \text{ind}_<, \text{max}$. The operator step types include short circuiting step types for those operators which can be short circuited. Multiplication $\times$ and boolean AND $\wedge$ are the same operator, and they can be short circuited when an input is zero. $\vee$ can be short circuited when an input is one. The void step type always outputs zero and it takes its own output as each of its inputs. The assert step type is used on all of the result subexpression ids and it is satisfied when the input value is 1. Implementing the equality and inequality comparisons, as well as the max function, relies on byte decomposition as described in \cite{sigma11}.
 	\item Compilation of a trace type to a Halo 2 circuit takes all of the step type constraints and gates them on the values of the step type selection vector. It carries over all of the fixed values and equality constraints. It adds equality constraints stating that the value of the case used column is the same for all rows belonging to the same case. It adds lookup arguments checking that the input column values are consistent with the corresponding subexpression output values; that all subexpressions are linked to proper input subexpressions for their step types according to the links table; and that all result subexpressions are present where applicable.
 \end{enumerate}
 
@@ -145,7 +150,7 @@ Future directions include:
 
 \begin{enumerate}
 	\item Finishing the integration of the OSL and argument compiler with Halo 2 will allow zk-SNARKs to be created and verified using this system. This will involve compiling out the lookup argument gate constraints; generating Rust code defining the Halo 2 circuit from its representation as a Haskell data structure; and integrating the Haskell argument compiler with the Rust prover code. These efforts are well underway.
-	\item Adding more optimizations to the compiler pipeline will result in lower circuit complexity. There are too many optimization opportunities to mention here. One worth mentioning is that rows can be utilized more efficiently by allowing for cases to use less than the maximum number of rows per case, thus allowing for more cases to fit into the same number of rows. Currently, the compiler makes use of short circuiting step types, which allows for subexpressions to be omitted where they do not need to be evaluated, but the opportunity to use this to pack more cases into the rows is not capitalized.
+	\item Adding more optimizations to the compiler pipeline will result in lower circuit complexity. There are too many optimization opportunities to mention them all here. One worth mentioning is that rows can be utilized more efficiently by allowing for cases to use less than the maximum number of rows per case, thus allowing for more cases to fit into the same number of rows. Currently, the compiler makes use of short circuiting step types, which allows for subexpressions to be omitted where they do not need to be evaluated, but the opportunity to use this to pack more cases into the rows is not capitalized upon.
 	\item Formally verifying the semantics preservation of the OSL and argument compiler will allow users to be confident that if they correctly expressed what they intended to prove in OSL, then the resulting zk-SNARKs do show what they are supposed to show.
 \end{enumerate}
 
@@ -231,6 +236,7 @@ without revealing a solution.
 
 
 \section{Grammar of OSL}
+\label{sec:osl-grammar}
 
 The grammar of OSL specs is defined by a sequent calculus.
 This syntactic definition of the language characterizes type
@@ -430,6 +436,7 @@ functions and constants for the scalar types.
 \end{equation}
 Note that casting from a scalar type to a less extensive scalar type
 is a partial function, where the result is defined only if the argument is
+in the codomain.
 
 The following rules introduce typing judgments for (Cartesian) products,
 coproducts (i.e., sum types), and functions, and their related primitives.
@@ -547,7 +554,7 @@ in Haskell):
 	{\Gamma \vdash \text{from}(x) : x \to \alpha}.
 \end{equation}
 The following rules enable the introduction of equational
-definitions and their use for type synonyms:
+definitions:
 \begin{equation}
 	\frac{\Gamma \vdash \bar{a} : \alpha
 	\qquad x \notin \text{free}(\Gamma)}
@@ -556,18 +563,6 @@ definitions and their use for type synonyms:
 	\frac{\Gamma\ \text{ctx}
 	\qquad (\text{def}\ x : \alpha := \bar{a}) \in \Gamma}
 	{\Gamma \vdash x : \alpha}
-\end{equation}
-\begin{equation}
-	\frac{\Gamma \vdash t : \text{Type}
-	\qquad (\text{def}\ t : \beta := \alpha) \in \Gamma
-	\qquad \Gamma \vdash x : t}
-	{\Gamma \vdash x : \alpha}
-\end{equation}
-\begin{equation}
-	\frac{\Gamma \vdash t : \text{Type}
-	\qquad (\text{def}\ t : \beta := \alpha) \in \Gamma
-	\qquad \Gamma \vdash \bar{x} : \alpha}
-	{\Gamma \vdash \bar{x} : t}.
 \end{equation}
 The following rule allows for the formation of let expressions:
 \begin{equation}
@@ -854,7 +849,7 @@ seen by induction on the length of derivations.
 \begin{equation}
 	\frac{\Gamma \vdash \neg\phi : \text{Prop}
 	\qquad
-	\Gamma \neg\psi : \text{Prop}}
+	\Gamma \vdash \neg\psi : \text{Prop}}
 	{\Gamma \vdash (\phi \leftrightarrow \psi) : \text{Prop}}.
 \end{equation}
 Because OSL allows for only universal quantification over finite types,
@@ -1012,6 +1007,7 @@ of quantified propositions:
 
 
 \section{OSL denotational semantics}
+\label{sec:osl-semantics}
 
 The denotational semantics for OSL assigns denotations to expressions
 relative to denotational contexts. A denotation is a set.
@@ -1109,6 +1105,12 @@ with domain $A$ and codomain $B$.
 	\qquad \Gamma,U,C \vdash \Delta(\alpha) = A
 	\qquad \Gamma,U,C \vdash \Delta(\beta) = B}
 	{\Gamma,U,C \vdash \Delta(\alpha \leftrightarrow \beta) = A \sim B}
+\end{equation}
+The following rule defines denotations of permutation inverses.
+\begin{equation}
+	\frac{\Gamma \vdash \bar{f} : \alpha \leftrightarrow \beta
+	\qquad \Gamma,U,C \vdash \Delta(\bar{f}) = F}
+	{\Gamma,U,C \vdash \Delta(\bar{f}^{-1}) = \{(y,x)\ |\ (x,y) \in F\}}
 \end{equation}
 In the following rules for basic numeric types, the mentioned denotations,
 $\mathbb{N}, +_\mathbb{N}$, and so forth, are defined within $U$ with their
@@ -1680,6 +1682,7 @@ The following rules define denotations of propositions, which are truth values
 
 
 \section{Grammar of $\Sigma^1_1$ formulas}
+\label{sec:sigma11-grammar}
 
 The first step in defining $\Sigma^1_1$ formulas is to define a language of
 terms. A term is a syntactic object which denotes a number, given a context which
@@ -1773,6 +1776,7 @@ $\Sigma^1_1$ formulas are defined by the following recursive definition.
 
 
 \section{Denotational semantics of $\Sigma^1_1$ formulas}
+\label{sec:sigma11-denotations}
 
 Relative to a suitable model, it is possible to define whether any given
 $\Sigma^1_1$ formula without instance quantifiers is true or false.
@@ -2026,6 +2030,9 @@ if $\delta_{M[f_1 \mapsto g]}(\phi)$ is defined for each $g$.
 	\bibitem{halo2-github} The Electric Coin Company. \textit{halo2.} 2022. \url{https://github.com/zcash/halo2}
 
 	\bibitem{simpson} Stephen G. Simpson. \textit{Subsystems of Second Order Arithmetic.} Cambridge University Press, 2009. ISBN 1139478915, 9781139478915.
+
+	\bibitem{sequent-calculus} Edward Z. Yang. \textit{Logitext Tutorial.} Accessed May 2022. \url{http://logitext.mit.edu/logitext.fcgi/tutorial}
+
 
 
 \end{thebibliography}
