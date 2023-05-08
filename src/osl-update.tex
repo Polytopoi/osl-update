@@ -1872,7 +1872,13 @@ has a denotation in $M$.
 		apply when $\delta_M(\beta_i) < 1$ for some $i$.
 \end{enumerate}
 
-Extending the denotational semantics to $\Sigma^1_1$ formulas in general requires allowing a denotation of a formula to possibly be a function. TODO
+Extending the denotational semantics to $\Sigma^1_1$ formulas in general requires allowing a denotation of a formula to possibly be a function.
+For all terms $\gamma$ and non-empty sequences of terms $\beta_1, ..., \beta_n$ and $\Sigma^1_1$ formulas $\phi$,
+\begin{equation}
+	\delta_M(\lambda <\gamma(<\beta_1, ..., <\beta_n).\ \phi)
+	:= \prod_{g \in [\delta_M(\gamma)]^{\prod_{j \in [n]} [\delta_M(\beta_j)]}} \delta_{M[f_1 \mapsto g]}(\phi),
+\end{equation}
+if $\delta_{M[f_1 \mapsto g]}(\phi)$ is defined for each $g$.
 
 
 \clearpage
