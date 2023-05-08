@@ -340,8 +340,8 @@ type into a context:
 \end{equation}
 
 The following rules declare the primitive scalar types.
-In OSL, there are three primitive scalar types:
-natural numbers ($\mathbb{N}$), integers ($\mathbb{Z}$),
+In OSL, there are the following primitive scalar types:
+natural numbers ($\mathbb{N}$), integers ($\mathbb{Z}$), native field elements ($\mathbb{F}$),
 and finite sets of $n$ distinct values ($\text{Fin}(n)$,
 for $n \in \mathbb{N}$). Throughout this paper, $0 \in \mathbb{N}$.
 
@@ -349,6 +349,8 @@ for $n \in \mathbb{N}$). Throughout this paper, $0 \in \mathbb{N}$.
 	\frac{\Gamma\ \text{ctx}}{\Gamma \vdash \mathbb{N} : \text{Type}}
 	\qquad
 	\frac{\Gamma\ \text{ctx}}{\Gamma \vdash \mathbb{Z} : \text{Type}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}{\Gamma \vdash \mathbb{F} : \text{Type}}
 	\qquad
 	\frac{\Gamma\ \text{ctx} \qquad n \in \mathbb{N}}{\Gamma \vdash \text{Fin}(n) : \text{Type}}
 \end{equation}
@@ -362,6 +364,9 @@ functions and constants for the scalar types.
 	\qquad
 	\frac{\Gamma\ \text{ctx}}
 	{\Gamma \vdash \times_{\mathbb{N}} : \mathbb{N} \to \mathbb{N} \to \mathbb{N}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash \text{max}_{\mathbb{N}} : \mathbb{N} \to \mathbb{N} \to \mathbb{N}}
 \end{equation}
 \begin{equation}
 	\frac{\Gamma\ \text{ctx}}
@@ -377,6 +382,9 @@ functions and constants for the scalar types.
 	\qquad
 	\frac{\Gamma\ \text{ctx}}
 	{\Gamma \vdash \times_{\mathbb{Z}} : \mathbb{Z} \to \mathbb{Z} \to \mathbb{Z}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash \text{max}_{\mathbb{Z}} : \mathbb{Z} \to \mathbb{Z} \to \mathbb{Z}}
 \end{equation}
 \begin{equation}
 	\frac{\Gamma\ \text{ctx}}
@@ -388,30 +396,40 @@ functions and constants for the scalar types.
 	\frac{\Gamma\ \text{ctx}}
 	{\Gamma \vdash -1_{\mathbb{Z}} : \mathbb{Z}}
 \end{equation}
+
 \begin{equation}
 	\frac{\Gamma\ \text{ctx}}
-	{\Gamma \vdash \text{cast} : \mathbb{N} \to \mathbb{Z}}
-	\qquad
-	\frac{\Gamma\ \text{ctx} \qquad n \in \mathbb{N}}
-	{\Gamma \vdash \text{cast} : \text{Fin}(n) \to \mathbb{N}}
-	\qquad
-	\frac{\Gamma\ \text{ctx} \qquad n \in \mathbb{N}}
-	{\Gamma \vdash \text{cast} : \mathbb{N} \to \text{Fin}(n)}
+	{\Gamma \vdash +_{\mathbb{F}} : \mathbb{F} \to \mathbb{F} \to \mathbb{F}}
 	\qquad
 	\frac{\Gamma\ \text{ctx}}
-	{\Gamma \vdash \text{cast} : \mathbb{Z} \to \mathbb{N}}
+	{\Gamma \vdash \times_{\mathbb{F}} : \mathbb{F} \to \mathbb{F} \to \mathbb{F}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash \text{max}_{\mathbb{F}} : \mathbb{F} \to \mathbb{F} \to \mathbb{F}}
 \end{equation}
-Note that casting from integers to naturals, or a finite type to naturals,
+
+\begin{equation}
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash 0_{\mathbb{F}} : \mathbb{F}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash 1_{\mathbb{F}} : \mathbb{F}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash -1_{\mathbb{F}} : \mathbb{F}}
+\end{equation}
+
+
+\begin{equation}
+	\text{Scalar} = \{\mathbb{N}, \mathbb{Z}, \mathbb{F}\} \cup \{\text{Fin}(n)\ |\ n \in \mathbb{N}\}
+\end{equation}
+
+\begin{equation}
+	\frac{\Gamma\ \text{ctx} \qquad \alpha, \beta \in \text{Scalar}}
+	{\Gamma \vdash \text{cast} : \alpha \to \beta}
+\end{equation}
+Note that casting from a scalar type to a less extensive scalar type
 is a partial function, where the result is defined only if the argument is
-in the codomain.
-\begin{equation}
-	\frac{\Gamma\ \text{ctx} \qquad n, m \in \mathbb{N} \qquad m \geq n}
-	{\Gamma \vdash \text{cast} : \text{Fin}(n) \to \text{Fin}(m)}
-\end{equation}
-\begin{equation}
-	\frac{\Gamma\ \text{ctx}\ \qquad n, m \in \mathbb{N} \qquad m < n}
-	{\Gamma \vdash \text{fin}(m) : \text{Fin}(n)}
-\end{equation}
 
 The following rules introduce typing judgments for (Cartesian) products,
 coproducts (i.e., sum types), and functions, and their related primitives.
@@ -469,9 +487,6 @@ The following rules define which types are finite-dimensional.
 The judgment $\Gamma \vdash \alpha : \text{FiniteDim}$ appears to be
 a type judgment, but like Type itself, FiniteDim is not a type; it can appear only
 by itself on the right-hand side of a judgment.
-\begin{equation}
-	\text{Scalar} = \{\mathbb{N}, \mathbb{Z}\} \cup \{\text{Fin}(n)\ |\ n \in \mathbb{N}\}
-\end{equation}
 \begin{equation}
 	\frac{\Gamma\ \text{ctx}
 	\qquad \alpha \in \text{Scalar}}
@@ -1096,10 +1111,11 @@ with domain $A$ and codomain $B$.
 	{\Gamma,U,C \vdash \Delta(\alpha \leftrightarrow \beta) = A \sim B}
 \end{equation}
 In the following rules for basic numeric types, the mentioned denotations,
-$\mathbb{N}, +_\mathbb{N}$, and so forth, are defined within $U$ in the usual
-manner, with the set of natural numbers being equated with the set of
+$\mathbb{N}, +_\mathbb{N}$, and so forth, are defined within $U$ with their
+usual extensions, with the set of natural numbers being equated with the set of
 finite von Neumann ordinals, and the set of integers being equated with
-the set $\{-1,1\} \times \mathbb{N}$.
+the set $\{-1,1\} \times \mathbb{N}$. $\mathbb{F}$ is to be defined as a
+subset of $\mathbb{N}$, with different arithmetic operations.
 \begin{equation}
 	\frac{\Gamma,U,C\ \text{dctx}}
 	{\Gamma,U,C \vdash \Delta(\mathbb{N}) = \mathbb{N}}
@@ -1117,6 +1133,9 @@ the set $\{-1,1\} \times \mathbb{N}$.
 	\qquad
 	\frac{\Gamma,U,C\ \text{dctx}}
 	{\Gamma,U,C \vdash \Delta(+_{\mathbb{Z}}) = +_{\mathbb{Z}}}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(+_{\mathbb{F}}) = +_{\mathbb{F}}}
 \end{equation}
 \begin{equation}
 	\frac{\Gamma,U,C\ \text{dctx}}
@@ -1124,7 +1143,21 @@ the set $\{-1,1\} \times \mathbb{N}$.
 	\qquad
 	\frac{\Gamma,U,C\ \text{dctx}}
 	{\Gamma,U,C \vdash \Delta(\times_{\mathbb{Z}}) = \times_{\mathbb{Z}}}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\times_{\mathbb{F}}) = \times_{\mathbb{F}}}
 \end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\times_{\mathbb{N}}) = \times_{\mathbb{N}}}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\times_{\mathbb{Z}}) = \times_{\mathbb{Z}}}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\times_{\mathbb{F}}) = \times_{\mathbb{F}}}
+\end{equation}
+
 \begin{equation}
 	\frac{\Gamma,U,C\ \text{dctx}}
 	{\Gamma,U,C \vdash \Delta(0_{\mathbb{N}}) = 0_{\mathbb{N}}}
@@ -1141,6 +1174,16 @@ the set $\{-1,1\} \times \mathbb{N}$.
 	\qquad
 	\frac{\Gamma,U,C\ \text{dctx}}
 	{\Gamma,U,C \vdash \Delta(-1_{\mathbb{Z}}) = -1_{\mathbb{Z}}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(0_{\mathbb{Z}}) = 0_{\mathbb{F}}}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(1_{\mathbb{Z}}) = 1_{\mathbb{F}}}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(-1_{\mathbb{Z}}) = -1_{\mathbb{F}}}
 \end{equation}
 \begin{equation}
 	\frac{\Gamma,U,C\ \text{dctx}}
