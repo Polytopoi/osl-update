@@ -31,7 +31,7 @@ The goal of this research is to develop tools for creating zk-SNARKs for a relat
 
 As an alternative, this research would allow end developers to specify a relation $R$ by a formula $\Phi(x, w)$ in a version of predicate logic, using a circuit compiler to generate an arithmetical constraint system for the relation $R$, and an argument translator which takes inputs $(x, w)$ such that $R(x, w)$ and turns them into inputs satisfying the arithmetical constraint system.
 
-This research began with the support of Orbis Labs and continues with the support of Casper Association. Prior art in this line of research \cite{sigma11,osl-paper,osl-poly-bounds} defined a version of predicate logic which is strong enough to express NP relations which are practical to arithmetize, and also some methods for arithmetizing formulas in that language on top of PLONKish arithmetization using Halo 2. \cite{halo2-book,halo2-github} The language in question is called OSL, which originally stood for Orbis Specification Language and now stands for Open Specification Language (a backronym). Implementation efforts \cite{osl-github} are ongoing and open source. As of this writing, these efforts are closely approaching a point where generating zero knowledge proofs will be possible. The current paper provides an update on the research and development efforts, which have come up with more practical methods of arithmetization than what are described in the prior literature.
+This research began with the support of Orbis Labs and continues with the support of Casper Association. Prior art in this line of research \cite{sigma11,osl-paper,sigma11-poly-bounds} defined a version of predicate logic which is strong enough to express NP relations which are practical to arithmetize, and also some methods for arithmetizing formulas in that language on top of PLONKish arithmetization using Halo 2. \cite{halo2-book,halo2-github} The language in question is called OSL, which originally stood for Orbis Specification Language and now stands for Open Specification Language (a backronym). Implementation efforts \cite{osl-github} are ongoing and open source. As of this writing, these efforts are closely approaching a point where generating zero knowledge proofs will be possible. The current paper provides an update on the research and development efforts, which have come up with more practical methods of arithmetization than what are described in the prior literature.
 
 OSL is a layer of abstraction over $\Sigma^1_1$ formulas. $\Sigma^1_1$ formulas are a sublanguage of second order arithmetic \cite{simpson} extended with $\text{ind}_<$ and max built-in functions, defined as follows:
 
@@ -301,7 +301,7 @@ empty context is valid:
 
 The following rules introduce basic typing judgments, stating that
 Prop (the type of propositions) is a type in any context, and
-types are closed under formation of function types:
+types are closed under formation of function types, including permutation types:
 
 \begin{equation}
 	\frac{\Gamma\ \text{ctx}}{\Gamma \vdash \text{Prop} : \text{Type}}
@@ -312,6 +312,23 @@ types are closed under formation of function types:
 	      \Gamma \vdash \beta : \text{Type}}
 	      {\Gamma \vdash (\alpha \to \beta) : \text{Type}}.
 \end{equation}
+
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{Type} \qquad
+	      \Gamma \vdash \beta : \text{Type}}
+	      {\Gamma \vdash (\alpha \leftrightarrow \beta) : \text{Type}}.
+\end{equation}
+
+Every permutation is a function, and its inverse is a function:
+
+\begin{equation}
+	\frac{\Gamma \vdash f : \alpha \leftrightarrow \beta}
+	{\Gamma \vdash f : \alpha \to \beta}
+	\qquad
+	\frac{\Gamma \vdash f : \alpha \leftrightarrow \beta}
+	{\Gamma \vdash f^{-1} : \beta \to \alpha}
+\end{equation}
+
 
 The following rule enables introduction of a variable of a given
 type into a context:
@@ -902,6 +919,11 @@ and is defined by the following rules.
 	{\Gamma \vdash \alpha \to \beta : \text{Quantifiable}}
 \end{equation}
 \begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{FiniteDim}
+	\qquad \Gamma \vdash \beta : \text{FiniteDim}}
+	{\Gamma \vdash \alpha \leftrightarrow \beta : \text{Quantifiable}}
+\end{equation}
+\begin{equation}
 	\frac{\Gamma \vdash \alpha : \text{Quantifiable}}
 	{\Gamma \vdash \text{List}(\alpha) : \text{Quantifiable}}
 \end{equation}
@@ -1028,6 +1050,15 @@ as the set of ordered pairs of its inputs and outputs.
 	\qquad \Gamma,U,C \vdash \Delta(\alpha) = A
 	\qquad \Gamma,U,C \vdash \Delta(\beta) = B}
 	{\Gamma,U,C \vdash \Delta(\alpha \to \beta) = B^A}
+\end{equation}
+In the following rule, $A \sim B$ represents the set of permutations
+with domain $A$ and codomain $B$.
+\begin{equation}
+	\frac{\Gamma \vdash \alpha : \text{FiniteDim}
+	\qquad \Gamma \vdash \beta : \text{FiniteDim}
+	\qquad \Gamma,U,C \vdash \Delta(\alpha) = A
+	\qquad \Gamma,U,C \vdash \Delta(\beta) = B}
+	{\Gamma,U,C \vdash \Delta(\alpha \leftrightarrow \beta) = A \sim B}
 \end{equation}
 In the following rules for basic numeric types, the mentioned denotations,
 $\mathbb{N}, +_\mathbb{N}$, and so forth, are defined within $U$ in the usual
