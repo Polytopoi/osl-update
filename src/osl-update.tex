@@ -793,6 +793,13 @@ a judgment.
 
 The following rules pertain to the formation of propositions:
 \begin{equation}
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash \top : \text{Prop}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash \bot : \text{Prop}}
+\end{equation}
+\begin{equation}
 	\frac{\Gamma \vdash \bar{x} : \alpha
 	\qquad \Gamma \vdash \bar{y} : \alpha
 	\qquad \Gamma \vdash \alpha : \text{Eq}}
@@ -813,6 +820,14 @@ The following rules pertain to the formation of propositions:
 	\qquad \Gamma \vdash \psi : \text{Prop}}
 	{\Gamma \vdash (\phi \vee \psi) : \text{Prop}}
 \end{equation}
+The following conditional and biconditional formation rules are formulated
+with reference to $\neg$ to account for the fact that not every proposition
+can be negated; only first-order formulas can be negated, and the premise of
+a conditional is implicitly in the negative position. The subformulas of a
+biconditional are also in positive position, but it suffices to assume that
+the negations of the subformulas are propositions, because it follows from
+$\neg\phi$ being a proposition that $\phi$ is also a proposition, as can be
+seen by induction on the length of derivations.
 \begin{equation}
 	\frac{\Gamma \vdash \phi : \text{Prop}}
 	{\Gamma \vdash \neg\phi : \text{Prop}}
@@ -820,6 +835,12 @@ The following rules pertain to the formation of propositions:
 	\frac{\Gamma \vdash \phi : \text{Prop}
 	\qquad \Gamma \vdash \psi : \text{Prop}}
 	{\Gamma \vdash (\phi \to \psi) : \text{Prop}}.
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \neg\phi : \text{Prop}
+	\qquad
+	\Gamma \neg\psi : \text{Prop}}
+	{\Gamma \vdash (\phi \leftrightarrow \psi) : \text{Prop}}.
 \end{equation}
 Because OSL allows for only universal quantification over finite types,
 the following rules define what a finite type is:
@@ -853,6 +874,13 @@ that do not contain existential quantifiers over infinite
 types. To capture this notion, the following rules extend
 the Finite judgment to propositions.
 \begin{equation}
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash \top : \text{Finite}}
+	\qquad
+	\frac{\Gamma\ \text{ctx}}
+	{\Gamma \vdash \bot : \text{Finite}}
+\end{equation}
+\begin{equation}
 	\frac{\Gamma \vdash (\bar{x} = \bar{y}) : \text{Prop}}
 	{\Gamma \vdash (\bar{x} = \bar{y}) : \text{Finite}}
 	\qquad
@@ -884,6 +912,13 @@ the Finite judgment to propositions.
 	\qquad \Gamma \vdash \psi : \text{Finite}
 	\qquad \Gamma \vdash \psi : \text{Prop}}
 	{\Gamma \vdash (\phi \to \psi) : \text{Finite}}
+\end{equation}
+\begin{equation}
+	\frac{\Gamma \vdash \phi : \text{Finite}
+	\qquad \Gamma \vdash \phi : \text{Prop}
+	\qquad \Gamma \vdash \psi : \text{Finite}
+	\qquad \Gamma \vdash \psi : \text{Prop}}
+	{\Gamma \vdash (\phi \leftrightarrow \psi) : \text{Finite}}
 \end{equation}
 Existential quantifiers can quantify only over types that
 are built by using only finite-dimensional types in the domains
@@ -1488,6 +1523,13 @@ denotations of applications of the sum function:
 The following rules define denotations of propositions, which are truth values
 (1 = true, 0 = false):
 \begin{equation}
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\top) = 1}
+	\qquad
+	\frac{\Gamma,U,C\ \text{dctx}}
+	{\Gamma,U,C \vdash \Delta(\bot) = 0}
+\end{equation}
+\begin{equation}
 	\frac{
 		\Gamma \vdash \alpha : \text{FiniteDim}
 		\qquad \Gamma \vdash \bar{x} : \alpha
@@ -1544,11 +1586,23 @@ The following rules define denotations of propositions, which are truth values
 \end{equation}
 \begin{equation}
 	\frac{
-		\Gamma \vdash \phi : \text{Prop}
+		\Gamma \vdash \neg\phi : \text{Prop}
 		\qquad \Gamma \vdash \psi : \text{Prop}
 		\qquad \Gamma,U,C\ \text{dctx}
 	}{
 		\Gamma,U,C \vdash \Delta(\phi \to \psi) = \Delta(\neg\phi \vee \psi)
+	}
+\end{equation}
+\begin{equation}
+	\frac{
+		\Gamma \vdash \neg\phi : \text{Prop}
+		\qquad \Gamma \vdash \neg\psi : \text{Prop}
+		\qquad \Gamma,U,C\ \text{dctx}
+	}{
+		\Gamma,U,C \vdash \Delta(\phi \leftrightarrow \psi) = \begin{cases}
+			1 & \text{if}\ \exists v \in \{0,1\}.\ (\Gamma,U,C \vdash \Delta(\phi) = v) \wedge (\Gamma,U,C \vdash \Delta(\psi) = v), \\
+			0 & \text{otherwise}.
+		\end{cases}
 	}
 \end{equation}
 \begin{equation}
